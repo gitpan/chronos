@@ -120,11 +120,13 @@ td.curday {
 a.today {
 	color: red;
 	font-size: 12pt;
+    font-weight: bold;
 }
 
 a.today:visited {
 	color: red;
 	font-size: 12pt;
+    font-weight: bold;
 }
 
 a.event {

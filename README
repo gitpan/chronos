@@ -52,6 +52,9 @@ be squashed within a day.
 THIS RELEASE
 ============
 
+1.1.4.2 fixes another major bug that would cause the date at the top of a day
+view to be always today.
+
 1.1.4.1 fixes a major bug that would print 0:00 for any event in month and week
 views.
 

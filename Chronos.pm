@@ -1,4 +1,4 @@
-# $Id: Chronos.pm,v 1.46 2002/08/12 23:36:56 nomis80 Exp $
+# $Id: Chronos.pm,v 1.47 2002/08/13 12:53:28 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies 
 #
@@ -40,7 +40,7 @@ use Chronos::Action::DelFile;
 use HTML::Entities;
 use POSIX qw(strftime);
 
-our $VERSION = "1.1.4.1";
+our $VERSION = "1.1.4.2";
 sub VERSION { $VERSION }
 
 sub handler {

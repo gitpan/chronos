@@ -1,3 +1,7 @@
+1.1.4.2:
+- Fixed a bug that would cause the date printed at the top of a day view to
+  always be today.
+
 1.1.4.1:
 - Fixed bug that would print 0:00 as the start and end time for any event in
   the month and week views.

@@ -1,4 +1,4 @@
-# $Id: Showday.pm,v 1.28 2002/08/12 18:27:35 nomis80 Exp $
+# $Id: Showday.pm,v 1.29 2002/08/13 12:53:28 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -239,7 +239,7 @@ EOF
 
     my $daystring =
       $chronos->format_date( $conf->{HEADER_DATE_FORMAT} || '%(long)',
-        Today_and_Now() );
+        $year, $month, $day, 0, 0, 0 );
     my $holidays =
       Chronos::Action::Showmonth::get_holidays( $self, $year, $month, $day );
     $return .= <<EOF;
