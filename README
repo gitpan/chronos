@@ -1,0 +1,114 @@
+WHAT IS CHRONOS?
+================
+
+Chronos is a Web agenda/calendar for Intranets (even if it can be used from
+anywhere). It can send reminders by email. You can schedule multi-user events.
+It is fast and light on resources (the balance size/speed can be tweaked by
+tweaking mod_perl and Apache).
+
+WHY WRITE YET ANOTHER WEB AGENDA?
+=================================
+
+All others are one of these:
+	- Proprietary
+	- Ugly
+	- Broken/buggy
+
+Chronos is not
+	- Proprietary
+	- Ugly
+	- Broken/buggy
+
+Chronos is released under the GPL (see the file COPYING to understand what it
+means to release a software under the GPL). Linux Québec Technologies is the
+copyright holder and is backing the development of this software. Chronos's look is 
+based on Prospector, whose look is based on Sun's agenda. The look has been enhanced
+with the power of style sheets, while always being careful to stay as close as
+possible to HTML 4.01.
+
+The following browsers are compatible with HTML 4.01 and
+CSS2 and therefore can be used to view Chronos as it was intended to be viewed:
+	- Mozilla 1.0+
+	- Internet Explorer 5.5+
+The following browsers can display Chronos relatively correctly, though some
+features will look uglier:
+	- Konqueror 3.0
+	- Internet Explorer 5.0
+	- Opera 6.0
+These browsers are too old/dumb and therefore Chronos looks ugly on them:
+	- Netscape 4.x
+Other browsers have not been tested. Send email to chronos@linuxquebec.com if
+you want one of them to be included in this list. Note that all browsers should
+be able to at least display Chronos as we try to be standards-compliant.
+Particularly, text browsers can be used to access Chronos.
+
+Lastly, Chronos is not buggy. All time calculations are done with Date::Calc. You
+will _not_ find yourself clicking on the first of the next month and getting
+sent to the first of the current month. And Chronos benefits from the Open
+Source movement: many eyes can fix many bugs. If you find a bug (even if Chronos
+is definitively *not* buggy), send email to chronos@linuxquebec.com. It should
+be squashed within a day.
+
+THIS RELEASE
+============
+
+1.0.4 features two new translations: German by Peer Oliver Schmidt and Norwegian
+by Tarjei Knapstad. Minor installation bugs have been squashed.
+
+Chronos is currently available in the following languages:
+	- English
+	- French
+	- Italian (incomplete)
+	- German
+	- Norwegian
+
+OLDER RELEASES
+==============
+
+1.0.3 introduces the Italian translation by Enzo Bontempo, fixes some language
+issues and minor display glitches. This could be the last 1.0.x release, unless
+translations for other languages get written.
+
+1.0.2 fixes some language issues (sorry English speakers), has better
+installation instructions and an easter egg.
+
+1.0.1 is an early release. It is fully working but lacks documentation. This
+will be addressed in 1.0.2, which should be out shortly. Also, this software was
+developed by French-speaking people so there may be some artifacts of that in
+various places in the code. This will surely disappear over time.
+
+1.0 was fully working but a few cosmetic bugs had to be ironed out.
+
+FUTURE RELEASES
+===============
+
+************************
+* CALL FOR TRANSLATORS *
+*********************************************************************************
+*                                                                               *
+*  Translating is EASY! Write to chronos@linuxquebec.com for more information.  *
+*                                                                               *
+*********************************************************************************
+
+1.1.0 will have the following features (among others, surely):
+    - Ability to add file attachments to an event
+	- Ability to remove/add participants to an event
+	- Ability to have no time associated with an event (only a date)
+	- Ability to have no duration associated with an event (only a start moment)
+	- The two last features will be useable in combination
+	- When the checkbox "ask for confirmation" is not checked, all status info
+	  will not be shown for participants.
+	- Holidays
+
+Future plans/dreams:
+	- Ability to choose from different stylesheets (themeability!)
+	- Many different languages to choose from
+
+CONTACT
+=======
+
+Send questions/suggestions/flames/patches to chronos@linuxquebec.com.
+
+Linux Québec Technologies offers professionnal support for this software.
+Visit Linux Québec Technologies at http://www.linuxquebec.com.
+Send support inquiries to info@linuxquebec.com.

@@ -1,0 +1,452 @@
+# $Id: Chronos.pm,v 1.20.4.1 2002/07/18 15:46:48 nomis80 Exp $
+#
+# Copyright (C) 2002  Linux Québec Technologies 
+#
+# This file is part of Chronos.
+# 
+# Chronos is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# Chronos is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Foobar; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# 
+package Chronos;
+
+use strict;
+use Apache::DBI;
+use Apache::Constants qw(:response);
+use Chronos::Static qw(to_datetime from_datetime Compare_YMD);
+use Date::Calc qw(:all);
+use Chronos::Action::Showday;
+use Chronos::Action::EditEvent;
+use Chronos::Action::SaveEvent;
+use Apache::Request;
+use Chronos::Action::Showmonth;
+use Chronos::Action::Showweek;
+use Chronos::Action::EditTask;
+use Chronos::Action::SaveTask;
+use Chronos::Action::UserPrefs;
+use Chronos::Action::SaveUserPrefs;
+
+our $VERSION = "1.0.4";
+sub VERSION { $VERSION }
+
+sub handler {
+    my $r       = shift;
+    my $chronos = Chronos->new($r);
+
+    # Bon, ça fait deux heures que je gosse sur une requête POST qui marchait
+    # pas et je viens de découvrir quelque chose de vraiment mongol. Voici une
+    # petite quote de "man Apache":
+    #
+    #     $r->content
+    #         The $r->content method will return the entity body read from the
+    #         client, but only if the request content type is "applica-
+    #         tion/x-www-form-urlencoded".  When called in a scalar context,
+    #         the entire string is returned.  When called in a list context, a
+    #         list of parsed key => value pairs are returned.  *NOTE*: you can
+    #         only ask for this once, as the entire body is read from the
+    #         client.
+    #
+    # La petite note à la fin fait toute la différence. Si je donne des
+    # paramètres en POST, ils vont être "oubliés" rendu ici parce que
+    # Chronos::Authz doit savoir quel type d'action on essait de faire pour
+    # pouvoir autoriser ou non. C'est pour ça qu'on doit checker pour
+    # l'autorisation ici et non dans un module à part.
+
+    if ( $chronos->action->authorized ) {
+        return $chronos->go;
+    } else {
+        my $user   = $chronos->user;
+        my $action = $chronos->{r}->param('action');
+        my $object = $chronos->{r}->param('object');
+        $r->note_basic_auth_failure;
+        $r->log_reason("user $user: not authorized (action: $action, object: $object)");
+        return AUTH_REQUIRED;
+    }
+}
+
+sub new {
+    my $self  = shift;
+    my $class = ref($self) || $self;
+    my $r     = Apache::Request->new(shift);
+    return bless { r => $r }, $class;
+}
+
+sub go {
+    my $self = shift;
+
+    my $lang = $self->lang;
+    Language( Decode_Language($lang) );
+
+    if ( $self->action->redirect ) {
+        $self->action->content;
+        return REDIRECT;
+    }
+
+    $self->header;
+    $self->body;
+    $self->footer;
+    $self->sendpage;
+    return OK;
+}
+
+sub lang {
+    my $self        = shift;
+    my $dbh         = $self->dbh;
+    my $user_quoted = $dbh->quote( $self->user );
+    my $lang        = $dbh->selectrow_array("SELECT lang FROM user WHERE user = $user_quoted") || 'fr';
+    return $lang;
+}
+
+sub header {
+    my $self = shift;
+
+    my $object = $self->action->object;
+    my $user = $self->user;
+    my $text   = $self->gettext;
+    my $dbh = $self->dbh;
+
+    my ( $year, $month, $day ) = $self->day;
+
+    $self->{page} .= <<EOF;
+<html>
+<head>
+    <title>Chronos $VERSION: $object</title>
+    <link rel="stylesheet" href="@{[$self->stylesheet]}" type="text/css">
+    <script type="text/javascript">
+@{[$self->javascript]}
+    </script>
+</head>
+
+<body>
+<table width="100%">
+    <tr><td>
+        <table width="100%" cellspacing=0>
+            <tr>
+                <td class=top>Chronos $VERSION - <a class=header href="/Chronos?action=userprefs">$user</a></td>
+                <td class=top align=right><select name="object" style="background-color:black; color:white" onChange="switchobject(this.value)">
+EOF
+    
+    my $user_quoted = $dbh->quote($self->user);
+    my $from_user = $dbh->selectall_arrayref("SELECT user, name, email FROM user WHERE user = $user_quoted OR public_readable = 'Y' OR public_writable = 'Y' ORDER BY name, user");
+    my $from_acl = $dbh->selectall_arrayref("SELECT user.user, user.name, user.email FROM user, acl WHERE acl.object = user.user AND acl.user = $user_quoted AND (acl.can_read = 'Y' OR acl.can_write = 'Y')");
+    my %users = map { $_->[0] => [ $_->[1], $_->[2] ] } @$from_user, @$from_acl;
+    foreach (sort { $users{$a}[0] cmp $users{$b}[0] || $a cmp $b } keys %users) {
+        my $string = ($users{$_}[0] || $_) . ($users{$_}[1] ? " &lt;" . $users{$_}[1] . "&gt;" : '');
+        my $selected = $self->action->object eq $_ ? 'selected' : '';
+        $self->{page} .= <<EOF;
+        <option value="$_" $selected>$string</option>
+EOF
+    }
+    
+    $self->{page} .= <<EOF;
+                </select></td>
+            </tr>
+        </table>
+    </td><tr><td>
+<!-- Begin @{[ref $self->action]} header -->
+@{[$self->action->header]}
+<!-- End @{[ref $self->action]} header -->
+    </td></tr>
+    <tr>
+        <td>
+EOF
+}
+
+sub body {
+    my $self = shift;
+    $self->{page} .= <<EOF;
+<!-- Begin @{[ref $self->action]} body -->
+@{[$self->action->content]}
+<!-- End @{[ref $self->action]} body -->
+EOF
+}
+
+sub footer {
+    my $self = shift;
+    $self->{page} .= <<EOF;
+        </td>
+    </tr>
+</table>
+</body>
+EOF
+}
+
+sub user {
+    my $self = shift;
+    return $self->{r}->connection->user;
+}
+
+sub stylesheet {
+    my $self = shift;
+    return $self->conf->{STYLESHEET} || "/chronos/chronos.css";
+}
+
+sub javascript {
+    my $self = shift;
+    my ($year, $month, $day) = $self->day;
+    my $action = $self->{r}->param('action');
+    return <<EOF
+function switchobject(object) {
+    window.location = ("/Chronos?object=" + object + "@{[$action ? "&action=$action" : '']}&year=$year&month=$month&day=$day");
+}
+EOF
+}
+
+sub sendpage {
+    my $self = shift;
+    $self->{r}->content_type('text/html');
+    $self->{r}->send_http_header;
+    $self->{r}->print( $self->{page} );
+}
+
+sub conf {
+    my $self = shift;
+    if ( not $self->{conf} ) {
+        $self->{conf} = Chronos::Static::conf();
+    }
+    return $self->{conf};
+}
+
+sub dbh {
+    my $self    = shift;
+    my $conf    = $self->conf();
+    my $db_type = $conf->{DB_TYPE} || 'mysql';
+    my $db_name = $conf->{DB_NAME} || 'chronos';
+    my $db_host = $conf->{DB_HOST};
+    my $db_port = $conf->{DB_PORT};
+    my $db_user = $conf->{DB_USER} || 'chronos';
+    my $db_pass = $conf->{DB_PASS};
+    if ( not $db_pass ) {
+        $self->{r}->log_error("I need a DB_PASS in /etc/chronos.conf");
+        return;
+    }
+
+    my $dsn;
+    my $dsn = "dbi:$db_type:$db_name" . ( $db_host ? ":$db_host" : '' ) . ( $db_port ? ":$db_port" : '' );
+    my $dbh = DBI->connect( $dsn, $db_user, $db_pass, { RaiseError => 1, PrintError => 0 } );
+    return $dbh;
+}
+
+sub gettext {
+    my $self = shift;
+    if ( not $self->{text} ) {
+        $self->{text} = Chronos::Static::gettext( $self->lang );
+    }
+    return $self->{text};
+}
+
+sub action {
+    my $self = shift;
+    my $name = $self->{r}->param('action');
+    if ( $name eq 'showday' ) {
+        return Chronos::Action::Showday->new($self);
+    } elsif ( $name eq 'saveevent' ) {
+        return Chronos::Action::SaveEvent->new($self);
+    } elsif ( $name eq 'editevent' ) {
+        return Chronos::Action::EditEvent->new($self);
+    } elsif ($name eq 'showmonth') {
+        return Chronos::Action::Showmonth->new($self);
+    } elsif ($name eq 'showweek') {
+        return Chronos::Action::Showweek->new($self);
+    } elsif ($name eq 'edittask') {
+        return Chronos::Action::EditTask->new($self);
+    } elsif ($name eq 'savetask') {
+        return Chronos::Action::SaveTask->new($self);
+    } elsif ($name eq 'userprefs') {
+        return Chronos::Action::UserPrefs->new($self);
+    } elsif ($name eq 'saveuserprefs') {
+        return Chronos::Action::SaveUserPrefs->new($self);
+    } else {
+        return Chronos::Action::Showday->new($self);
+    }
+}
+
+sub day {
+    my $self = shift;
+    my $year = $self->{r}->param('year');
+    my $month = $self->{r}->param('month');
+    my $day = $self->{r}->param('day');
+    my @today = Today();
+    $year  ||= $today[0];
+    $month ||= $today[1];
+    $day   ||= $today[2];
+    return ( $year, $month, $day );
+}
+
+sub dayhour {
+    my $self = shift;
+    my ( $year, $month, $day ) = $self->day;
+    my $hour = $self->{r}->param('hour');
+    $hour = ( Now() )[0] if not defined $hour;
+    return ( $year, $month, $day, $hour );
+}
+
+sub event {
+    my $self = shift;
+    my $eid  = shift;
+    $self->{events} ||= {};
+    if ( not $self->{events}{$eid} ) {
+        $self->{events}{$eid} = $self->dbh->selectrow_hashref("SELECT * FROM events WHERE eventid = $eid");
+    }
+    return $self->{events}{$eid};
+}
+
+sub minimonth {
+    my $self = shift;
+    my $object = $self->action->object;
+    my ( $year, $month, $day ) = @_;
+    my $nocur = ! $day;
+    $day ||= 1;
+
+    my ( $prev_year,      $prev_month,      $prev_day )      = Add_Delta_YM( $year, $month, $day, 0,  -1 );
+    my ( $next_year,      $next_month,      $next_day )      = Add_Delta_YM( $year, $month, $day, 0,  1 );
+    my ( $prev_prev_year, $prev_prev_month, $prev_prev_day ) = Add_Delta_YM( $year, $month, $day, -1, 0 );
+    my ( $next_next_year, $next_next_month, $next_next_day ) = Add_Delta_YM( $year, $month, $day, 1,  0 );
+
+    my $return = <<EOF;
+<!-- Begin Chronos::minimonth -->
+<table class=minimonth>
+    <tr>
+        <th class=minimonth colspan=7>
+            <a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$prev_prev_year&amp;month=$prev_prev_month&amp;day=$prev_prev_day">&lt;&lt;</a>&nbsp;
+            <a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$prev_year&amp;month=$prev_month&amp;day=$prev_day">&lt;</a>&nbsp;
+            <a class=minimonthheader href="/Chronos?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">@{[ucfirst Month_to_Text($month)]}</a> $year&nbsp;
+            <a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$next_year&amp;month=$next_month&amp;day=$next_day">&gt;</a>&nbsp;
+            <a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$next_next_year&amp;month=$next_next_month&amp;day=$next_next_day">&gt;&gt;</a>
+        </th>
+    </tr>
+    <tr>
+EOF
+
+    # Dans Date::Calc, toutes les fonctions utilisent 1 pour lundi et 7 pour
+    # dimanche. C'est pourquoi le minimonth commence à partir de lundi et non
+    # dimanche comme on pourrait s'y attendre. Voici ce que l'auteur de
+    # Date::Calc dit pour justifier ce choix:
+    #
+    #     Note that in the Hebrew calendar (on which the Christian calendar
+    #     is based), the week starts with Sunday and ends with the Sabbath
+    #     or Saturday (where according to the Genesis (as described in the
+    #     Bible) the Lord rested from creating the world).
+    # 
+    #     In medieval times, catholic popes have decreed the Sunday to be
+    #     the official day of rest, in order to dissociate the Christian
+    #     from the Hebrew belief.
+    # 
+    #     Nowadays, the Sunday AND the Saturday are commonly considered (and
+    #     used as) days of rest, usually referred to as the "week-end".
+    # 
+    #     Consistent with this practice, current norms and standards (such
+    #     as ISO/R 2015-1971, DIN 1355 and ISO 8601) define the Monday as
+    #     the first day of the week.
+    
+    foreach ( 1 .. 7 ) {
+        $return .= <<EOF;
+        <td>@{[Day_of_Week_Abbreviation($_)]}</td>
+EOF
+    }
+
+    $return .= <<EOF;
+    </tr>
+EOF
+
+    my $dow_first = Day_of_Week( $year, $month, 1 );
+    if ($dow_first != 1) {
+        $return .= <<EOF;
+    <tr>
+EOF
+    }
+    foreach ( 1 .. ( $dow_first - 1 ) ) {
+        my ( $mini_year, $mini_month, $mini_day ) = Add_Delta_Days( $year, $month, 1, -( $dow_first - $_ ) );
+        $return .= <<EOF;
+        <td><a class=dayothermonth href="/Chronos?action=showday&amp;object=$object&amp;year=$mini_year&amp;month=$mini_month&amp;day=$mini_day">$mini_day</a></td>
+EOF
+    }
+
+    my $days = Days_in_Month( $year, $month );
+    my ( $curyear, $curmonth, $curday ) = Today();
+    foreach ( 1 .. $days ) {
+        my $tdclass = "class=curday" if $_ == $day and not $nocur;
+        my $class = ( $_ == $curday and $month == $curmonth ) ? 'today' : 'daycurmonth';
+
+        my $dow = Day_of_Week( $year, $month, $_ );
+        if ( $dow == 1 ) {
+            $return .= <<EOF;
+    <tr>
+EOF
+        }
+        $return .= <<EOF;
+        <td $tdclass><a class=$class href="/Chronos?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$_">$_</a></td>
+EOF
+        if ( $dow == 7 ) {
+            $return .= <<EOF;
+    </tr>
+EOF
+        }
+    }
+
+    my $dow_last = Day_of_Week( $year, $month, $days );
+    foreach ( ( $dow_last + 1 ) .. 7 ) {
+        my ( $mini_year, $mini_month, $mini_day ) = Add_Delta_Days( $year, $month, $days, ( $_ - $dow_last ) );
+        $return .= <<EOF;
+        <td><a class=dayothermonth href="/Chronos?action=showday&amp;object=$object&amp;year=$mini_year&amp;month=$mini_month&amp;day=$mini_day">$mini_day</a></td>
+EOF
+    }
+
+    my $text = $self->gettext;
+    my $today = Date_to_Text_Long( $curyear, $curmonth, $curday );
+    $return .= <<EOF;
+    </tr>
+    <tr>
+        <td colspan=7 class=minimonthfooter>
+            <a class=daycurmonth href="/Chronos?action=showday&amp;object=$object&amp;year=$curyear&amp;month=$curmonth&amp;day=$curday">$text->{today}</a>, $today
+        </td>
+    </tr>
+</table>
+<!-- End Chronos::minimonth -->
+EOF
+
+    return $return;
+}
+
+sub events {
+    my $self = shift;
+    my $object = $self->action->object;
+    my ($year, $month, $day, @sth) = @_;
+
+    my $today = to_datetime($year, $month, $day, 0, 0, 0);
+    my $tomorrow = to_datetime(Add_Delta_Days($year, $month, $day, 1), 0, 0, 0);
+
+    my $return = "";
+    foreach my $sth (@sth) {
+        $sth->execute($today, $tomorrow);
+        while (my ($eid, $name, $start, $end) = $sth->fetchrow_array) {
+            my ($syear, $smonth, $sday, $shour, $smin, $ssec) = from_datetime($start);
+            my ($eyear, $emonth, $eday, $ehour, $emin, $esec) = from_datetime($end);
+            my $range;
+            if (Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) == 0 ) {
+                $range = sprintf '%d:%02d - %d:%02d', $shour, $smin, $ehour, $emin;
+            } else {
+                $range = sprintf '%s %d:%02d - %s %d:%02d', Date_to_Text_Long( $syear, $smonth, $sday ), $shour, $smin, Date_to_Text_Long( $eyear, $emonth, $eday ), $ehour, $emin;
+            }
+
+            $return .= <<EOF;
+            <br><a class=event href="/Chronos?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a><br>$range
+EOF
+        }
+        $sth->finish;
+    }
+    return $return;
+}
+
+1;
+# vim: set et ts=4 sw=4:

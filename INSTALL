@@ -1,0 +1,99 @@
+REQUIREMENTS
+============
+
+	mod_perl
+	apache
+	mysql
+	sendmail or postfix (for reminders)
+	Apache::DBI
+	DBI
+	DBD::mysql
+	Date::Calc
+	Apache::Request
+	HTML::Entities
+
+On a RedHat 7.3 system, these requirements can be fulfilled by following these
+steps:
+
+	1) Install these RPMs:
+		- mod_perl
+		- apache
+		- mysql-server
+		- sendmail and/or postfix
+		- perl-DBI
+		- perl-DBD-MySQL
+		- perl-Date-Calc
+		- perl-libwww-perl
+		- apache-devel (to be able to compile in the next step)
+		
+	2) Download, compile, test and install the remaining Perl modules by
+	executing this command:
+		perl -MCPAN -e 'install Apache::DBI; install Apache::Request'
+	Make sure you have the basic development tools needed to compile stuff,
+	namely gcc and make.
+
+
+INSTALLATION INSTRUCTIONS
+=========================
+
+1) Install the modules and programs:
+
+	perl Makefile.PL
+	make
+	make install
+
+When you do "perl Makefile.PL", perl may output many error messages concerning
+modules that could not be found. That means that you have to install them. One
+exception is Apache::DBI. This module can only be loaded when run under mod_perl
+and running Makefile.PL by hand does not qualify as running under mod_perl. So
+if you get this message:
+	Warning: prerequisite Apache::DBI failed to load: Can't locate object method
+	"module" via package "Apache" at /usr/lib/perl5/site_perl/5.6.0/Apache/DBI.pm
+	line 202.
+	Compilation failed in require at (eval 10) line 3.
+That means you do have installed Apache::DBI correctly but it can't be loaded
+because you're not (yet) running under mod_perl. Point is, you can ignore that
+message. Note that the above message is *not* the same message that would get
+printed if you had not installed Apache::DBI.
+
+2) Configure Apache
+
+	- Add these lines to httpd.conf:
+
+		<VirtualHost _default_:443>
+			DocumentRoot "/var/www/ssl"
+			<Location /Chronos>
+			SetHandler perl-script
+			PerlHandler Chronos
+			PerlAuthenHandler Chronos::Authen
+			Require valid-user
+			AuthName "Chronos"
+			AuthType Basic
+			</Location>
+		</VirtualHost>
+
+	/var/www/ssl is used to host chronos.css. You can move it if you wish. Also,
+	feel free to not use SSL, but remember that passwords will be sent in clear
+	text.
+
+	If you already have a "<VirtualHost _default_:443>" section (which is very
+	likely, given that distros now ship mod_ssl by default), you can put the
+	rest inside the existing one. If there is already a "DocumentRoot"
+	instruction for the existing VirtualHost section, you can either use this
+	one and move Chronos' files or move your own files to /var/www/ssl.
+
+3) Create the database
+
+	chronos_install_db
+
+4) Create a user
+
+	chronosadmin -p --new-user
+
+5) Have remindd start automatically on boot
+
+	/sbin/chkconfig --add remindd
+	/sbin/chkconfig remindd on
+	/sbin/service remindd start
+
+6) Restart apache and go to https://your.host.here/Chronos

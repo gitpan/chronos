@@ -1,0 +1,35 @@
+1.0.4:
+- New German translation (thanks to Peer Oliver Schmidt <pos@theinternet.de>!!)
+- New Norwegian translation (thanks to Tarjei Knapstad <tarjeik@chemcon.no>!!)
+- Fix bug in chronos_install_db where /etc/chronos.conf would not be owned by
+  the right user.
+
+1.0.3:
+- Still better installation instructions
+- New italian translation (thanks to Enzo Bontempo <enzo@bontempo.it>!!)
+- Possible languages show up in chronosadmin when creating a user
+- Better translation handling in case strings are missing
+- Misc minor display fixes.
+
+1.0.2:
+- chronosadmin and chronos_install_db have been made language-aware. remindd
+  uses /usr/share/chronos/lang/* like everyone else.
+- Added an easter egg.
+- Abbreviate month names in Showmonth's header.
+- Better installation instructions.
+
+1.0.1:
+
+- Fixed a bug in Showmonth and Showweek which would enable a user to see
+  everyone else's events.
+- Added "Month | Week | Day" links in EditEvent and EditTask.
+- A reminder set 36 hours before event would show as 1 day. Fixed.
+- Participants are ordered by name in EditEvent.
+- When switching user in month or week view, the view is not switched back to
+  day view.
+- Events which start and end at the same time are now displayed correctly.
+- Misc. fixes to day view.
+
+1.0:
+
+- Initial release.
