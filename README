@@ -52,16 +52,9 @@ be squashed within a day.
 THIS RELEASE
 ============
 
-1.1.0 brings major feature enhancements: file attachments, participant
-management, events with no time associated, more intuitive status management and
-locale-dependant holidays. Minor documentation, installation and look issues
-have also been fixed.
-
-OLDER RELEASES
-==============
-
-1.0.4 features two new translations: German by Peer Oliver Schmidt and Norwegian
-by Tarjei Knapstad. Minor installation bugs have been squashed.
+1.1.2 brings minor bugfixes and visual enhancements. Apache::DBI does not
+complain anymore, meaning that Chronos is installable by CPAN and installation
+will be overall easier.
 
 Chronos is currently available in the following languages:
     - English
@@ -69,6 +62,19 @@ Chronos is currently available in the following languages:
     - Italian (incomplete)
     - German
     - Norwegian
+
+OLDER RELEASES
+==============
+
+1.1.1 fixes some minor bugs that inevitably appear in .0 releases.
+
+1.1.0 brings major feature enhancements: file attachments, participant
+management, events with no time associated, more intuitive status management and
+locale-dependant holidays. Minor documentation, installation and look issues
+have also been fixed.
+
+1.0.4 features two new translations: German by Peer Oliver Schmidt and Norwegian
+by Tarjei Knapstad. Minor installation bugs have been squashed.
 
 1.0.3 introduces the Italian translation by Enzo Bontempo, fixes some language
 issues and minor display glitches. This could be the last 1.0.x release, unless

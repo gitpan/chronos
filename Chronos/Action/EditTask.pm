@@ -1,4 +1,4 @@
-# $Id: EditTask.pm,v 1.6 2002/07/29 16:07:40 nomis80 Exp $
+# $Id: EditTask.pm,v 1.7 2002/08/01 01:54:42 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -97,7 +97,7 @@ sub form {
     </tr>
     <tr>
         <td class=eventlabel>$text->{tasknotes}</td>
-        <td><textarea cols=50 rows=5 name=notes>$notes</textarea></td>
+        <td><textarea cols=80 rows=25 name=notes>$notes</textarea></td>
     </tr>
     <tr>
         <td class=eventlabel>$text->{taskpriority}</td>

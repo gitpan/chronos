@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: remindd,v 1.5 2002/07/29 16:07:40 nomis80 Exp $
+# $Id: remindd,v 1.6 2002/08/01 01:38:02 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -79,7 +79,7 @@ sub sendmail {
     Language( Decode_Language($lang) );
 
     my $text = gettext($lang);
-    my $mail = $text->{remindd_template};
+    my $mail = decode_entities($text->{remindd_template});
 
     $mail =~ s/\%\%TO\%\%/$email/g;
 

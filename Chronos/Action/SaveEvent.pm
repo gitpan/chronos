@@ -1,4 +1,4 @@
-# $Id: SaveEvent.pm,v 1.19 2002/07/29 16:07:40 nomis80 Exp $
+# $Id: SaveEvent.pm,v 1.20 2002/08/01 01:48:15 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -384,6 +384,21 @@ sub content {
                     $sth_participants->execute( $eid, $_, $status );
                 }
 
+                if ( $chronos->{r}->param('new_attachment') ) {
+                    my $upload   = $chronos->{r}->upload('new_attachment');
+                    my $filename = $upload->filename;
+                    $filename =~ s/.*\///;
+                    $filename =~ s/.*\\//;
+                    my $size = $upload->size;
+                    my $file;
+                    {
+                        local $/;
+                        $file = readline $upload->fh;
+                    }
+                    $dbh->prepare("INSERT INTO attachments (filename, size, file, eid) VALUES(?, ?, ?, ?)")->execute( $filename, $size, $file, $eid );
+                }
+
+
                 if ( $recur eq 'DAY' ) {
                     ( $syear, $smonth, $sday ) = Add_Delta_Days( $syear, $smonth, $sday, 1 );
                     ( $eyear, $emonth, $eday ) = Add_Delta_Days( $eyear, $emonth, $eday, 1 );
@@ -431,6 +446,20 @@ sub content {
             foreach (@participants) {
                 $sth->execute($_);
             }
+
+            if ( $chronos->{r}->param('new_attachment') ) {
+                my $upload   = $chronos->{r}->upload('new_attachment');
+                my $filename = $upload->filename;
+                $filename =~ s/.*\///;
+                $filename =~ s/.*\\//;
+                my $size = $upload->size;
+                my $file;
+                {
+                    local $/;
+                    $file = readline $upload->fh;
+                }
+                $dbh->prepare("INSERT INTO attachments (filename, size, file, eid) VALUES(?, ?, ?, ?)")->execute( $filename, $size, $file, $eid );
+            }
         }
 
         if ($confirm) {
@@ -439,7 +468,7 @@ sub content {
     }
 
     my ( $year, $month, $day ) = $chronos->day;
-    if ( $chronos->{r}->param('new_attachment') or $redirect eq 'self' ) {
+    if ( $chronos->{r}->param('eid') and $chronos->{r}->param('new_attachment') or $redirect eq 'self' ) {
         $chronos->{r}->header_out( "Location", "/Chronos?action=editevent&eid=$eid&object=$object&year=$year&month=$month&day=$day" );
     } else {
         $chronos->{r}->header_out( "Location", "/Chronos?action=showday&object=$object&year=$year&month=$month&day=$day" );

@@ -7,9 +7,13 @@ DB_USER=chronos
 # The password that will be used for connecting to the database
 DB_PASS=secret
 
-# The holiday profile that will be used. Comment this line for no holidays. Use
+# The holiday profile that will be used. By default holidays are not used. Use
 # chronosadmin --show-holidays to know what profiles are available.
-HOLIDAYS=CA-QC
+#HOLIDAYS=CA-QC
 
 # Path to sendmail (/usr/sbin/sendmail by default)
-SENDMAIL=/usr/sbin/sendmail
+#SENDMAIL=/usr/sbin/sendmail
+
+# Path to stylesheet relative to DocumentRoot
+# Default: /chronos_static/chronos.css
+#STYLESHEET=/chronos_static/chronos.css

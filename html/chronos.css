@@ -10,7 +10,8 @@ table {
 }
 
 table.dayview {
-	border: 1px black solid;
+	border-right: 1px black solid;
+	border-bottom: 1px black solid;
 	border-collapse: collapse;
 }
 
@@ -40,20 +41,25 @@ td.weektaskview {
 
 th.dayview {
 	background-color: #CCCC99;
-	border: 1px black solid;
+	border-left: 1px black solid;
+	border-top: 1px black solid;
 	font-weight: bold;
 }
 
 td.dayviewhour {
 	background-color: #CCCC99;
-	border: 1px black solid;
+	border-top: 1px black solid;
+	border-left: 1px black solid;
+	border-right: 1px black solid;
 	text-align: center;
 	width: 50px;
 }
 
 td.event {
 	background-color: white;
-	border: 1px black solid;
+	border-right: 1px black solid;
+	border-top: 1px black solid;
+	border-left: 1px black solid;
 	vertical-align: top;
 }
 

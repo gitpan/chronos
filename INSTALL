@@ -47,8 +47,8 @@ steps:
 
 1) Back up your database
 
-        mysql -u <chronos user> -p<chronos password> -n -t <chronos database> \
-            > ~/chronos.bak.sql
+        mysqldump -u <chronos user> -p<chronos password> -n -t \
+            <chronos database> > ~/chronos.bak.sql
 
 2) Create the new database
 
@@ -85,6 +85,16 @@ steps:
         service httpd restart
 
 
+GENERAL UPGRADING
+=================
+
+(short instructions, refer below for more details)
+
+1) perl Makefile.PL && make && make install
+2) service httpd restart
+3) service remindd restart
+
+
 INSTALLATION INSTRUCTIONS
 =========================
 
@@ -93,20 +103,6 @@ INSTALLATION INSTRUCTIONS
 	perl Makefile.PL
 	make
 	make install
-
-When you do "perl Makefile.PL", perl may output many error messages concerning
-modules that could not be found. That means that you have to install them. One
-exception is Apache::DBI. This module can only be loaded when run under mod_perl
-and running Makefile.PL by hand does not qualify as running under mod_perl. So
-if you get this message:
-	Warning: prerequisite Apache::DBI failed to load: Can't locate object method
-	"module" via package "Apache" at /usr/lib/perl5/site_perl/5.6.0/Apache/DBI.pm
-	line 202.
-	Compilation failed in require at (eval 10) line 3.
-That means you do have installed Apache::DBI correctly but it can't be loaded
-because you're not (yet) running under mod_perl. Point is, you can ignore that
-message. Note that the above message is *not* the same message that would get
-printed if you had not installed Apache::DBI.
 
 2) Configure Apache
 
@@ -122,6 +118,8 @@ printed if you had not installed Apache::DBI.
 			AuthName "Chronos"
 			AuthType Basic
 			</Location>
+            # The alias is for stupid browsers
+            Alias /chronos /Chronos
 		</VirtualHost>
 
 	/var/www/ssl is used to host static content like style sheets and images.

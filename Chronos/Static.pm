@@ -1,4 +1,4 @@
-# $Id: Static.pm,v 1.20 2002/07/28 20:46:45 nomis80 Exp $
+# $Id: Static.pm,v 1.21 2002/07/30 17:39:12 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -36,7 +36,7 @@ our @EXPORT_OK =
   qw(&gettext &conf &dbh &datetime2values &Compare_YMDHMS &to_datetime &from_datetime &Compare_YMD &from_date &userstring &to_date &lang &get &from_time &to_time);
 our %EXPORT_TAGS = ( all => \@EXPORT_OK );
 
-our $VERSION = '1.1.0';
+our $VERSION = '1.1.1';
 sub VERSION { $VERSION }
 
 =pod

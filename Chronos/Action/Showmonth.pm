@@ -1,4 +1,4 @@
-# $Id: Showmonth.pm,v 1.13 2002/07/29 16:07:40 nomis80 Exp $
+# $Id: Showmonth.pm,v 1.17 2002/07/30 12:43:30 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -166,9 +166,9 @@ EOF
     my $dow_last = Day_of_Week( $year, $month, $days );
     foreach ( ( $dow_last + 1 ) .. 7 ) {
         my ( $mini_year, $mini_month, $mini_day ) = Add_Delta_Days( $year, $month, $days, ( $_ - $dow_last ) );
-        my $holidays = $self->get_holidays($year, $month, $_);
+        my $holidays = $self->get_holidays($mini_year, $mini_month, $mini_day);
         $return .= <<EOF;
-        <td class=dayothermonth height=80><a class=daycurmonth href="/Chronos?action=showday&amp;object=$object&amp;year=$mini_year&amp;month=$mini_month&amp;day=$mini_day">$mini_day</a>
+        <td class=dayothermonth height=80><a class=daycurmonth href="/Chronos?action=showday&amp;object=$object&amp;year=$mini_year&amp;month=$mini_month&amp;day=$mini_day">$mini_day</a>$holidays
 EOF
         $return .= $chronos->events_per_day($mini_year, $mini_month, $mini_day);
         $return .= "</td>";
@@ -190,7 +190,7 @@ EOF
         my $self = shift;
         my ($year, $month, $day) = @_;
         my $profile = $self->{parent}->conf->{HOLIDAYS};
-        return 0 if not $profile;
+        return '' if not $profile;
         if (not $calendars{$profile}{$year}) {
             $calendars{$profile}{$year} = Date::Calendar->new($Profiles->{$profile})->year($year);
         }

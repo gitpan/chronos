@@ -1,4 +1,4 @@
-# $Id: EditEvent.pm,v 1.17 2002/07/29 16:07:40 nomis80 Exp $
+# $Id: EditEvent.pm,v 1.21 2002/08/01 01:54:42 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -240,7 +240,7 @@ EOF
                     </td>
                     <td class=attachment>$size</td>
                     <td valign=top>
-                        <a href="/Chronos?action=delfile&amp;aid=$aid&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos/trash.png"></a>
+                        <a href="/Chronos?action=delfile&amp;aid=$aid&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/trash.png"></a>
                     </td>
                 </tr>
 EOF
@@ -428,7 +428,7 @@ if (this.checked) {
     </tr>
     <tr>
         <td class=eventlabel>$text->{eventdescription}</td>
-        <td><textarea name=description cols=30 rows=3>$event{description}</textarea></td>
+        <td><textarea name=description cols=50 rows=8>$event{description}</textarea></td>
     </tr>
 EOF
         unless ($eid) {
@@ -607,7 +607,9 @@ EOF
                 $reminder_datetime = $dbh->selectrow_array("SELECT reminder FROM participants WHERE eid = $eid");
             }
             if ( defined $reminder_datetime ) {
-                my ( $Dd, $Dh, $Dm ) = Delta_DHMS( from_datetime($reminder_datetime), from_date( $event{start_date} ), from_time( $event{start_time} ) || (0, 0, 0) );
+                my @start_time = from_time($event{start_time});
+                @start_time = (0, 0, 0) if not @start_time;
+                my ( $Dd, $Dh, $Dm ) = Delta_DHMS( from_datetime($reminder_datetime), from_date( $event{start_date} ), @start_time );
                 if ($Dd and not $Dh) {
                     $selunit{day} = 'selected';
                     $selnumber{$Dd} = 'selected';
@@ -638,45 +640,43 @@ EOF
         <td>$remind_me</td>
     </tr>
 EOF
-        if ($eid) {
-            $return .= <<EOF;
+        $return .= <<EOF;
     <tr>
         <td class=eventlabel>$text->{attachments}</td>
         <td>
 EOF
-            if ($dbh->selectrow_array("SELECT COUNT(*) FROM attachments WHERE eid = $eid")) {
-                $return .= <<EOF;
+        if ($eid and $dbh->selectrow_array("SELECT COUNT(*) FROM attachments WHERE eid = $eid")) {
+            $return .= <<EOF;
             <table class=attachments>
 EOF
-                my $sth_files = $dbh->prepare("SELECT aid, filename, size FROM attachments WHERE eid = $eid ORDER BY filename");
-                $sth_files->execute;
-                while (my ($aid, $filename, $size) = $sth_files->fetchrow_array) {
-                    $filename = encode_entities($filename);
-                    $size = format_size($size);
-                    $return .= <<EOF;
+            my $sth_files = $dbh->prepare("SELECT aid, filename, size FROM attachments WHERE eid = $eid ORDER BY filename");
+            $sth_files->execute;
+            while (my ($aid, $filename, $size) = $sth_files->fetchrow_array) {
+                $filename = encode_entities($filename);
+                $size = format_size($size);
+                $return .= <<EOF;
                 <tr>
                     <td class=attachment>
                         <a href="/Chronos/getfile/$aid/$filename" class=attachment>$filename</a>
                     </td>
                     <td class=attachment>$size</td>
                     <td valign=top>
-                        <a href="/Chronos?action=delfile&amp;aid=$aid&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos/trash.png"></a>
+                        <a href="/Chronos?action=delfile&amp;aid=$aid&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/trash.png"></a>
                     </td>
                 </tr>
 EOF
-                }
-                $sth_files->finish;
+            }
+            $sth_files->finish;
 
-                $return .= <<EOF;
+            $return .= <<EOF;
             </table>
 EOF
-            }
-            $return .= <<EOF;
+        }
+        $return .= <<EOF;
             $text->{new_attachment} <input type=file name=new_attachment>
         </td>
     </tr>
 EOF
-        }
 
         $return .= <<EOF;
     <tr>
@@ -702,11 +702,11 @@ EOF
 
 sub format_size {
     my $size = shift;
-    if ($size >= 1024 * 1024 * 1024 / 10) {
+    if ($size >= 1024 * 1024 * 1024 ) {
         return sprintf '%0.1f GB', $size / ( 1024 * 1024 * 1024 );
-    } elsif ($size >= 1024 * 1024 / 10) {
+    } elsif ($size >= 1024 * 1024 ) {
         return sprintf '%0.1f MB', $size / ( 1024 * 1024 );
-    } elsif ($size >= 1024 / 10) {
+    } elsif ($size >= 1024 ) {
         return sprintf '%0.1f kB', $size / 1024;
     } else {
         return "$size B";

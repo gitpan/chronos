@@ -1,3 +1,30 @@
+1.1.2:
+- Move /var/www/ssl/chronos to /var/www/ssl/chronos_static and make /chronos
+  an alias for /Chronos. Old browsers reportedly had some difficulties with
+  uppercase.
+- Installation now doesn't complain about Apache::DBI missing (thanks to Stas
+  Bekman <stas@stason.org>!!)
+- Sometimes a user would see events in Showmonth or Showweek which he
+  shouldn't see
+- Reminder emails no longer contain html entities instead of 8bit characters
+- Possibility to have attachments at event creation
+- Better attachment size reporting
+- make test doesn't hang, meaning Chronos can be installed using CPAN
+- Bigger texteareas for the verbose out there
+- Disk icon for events containing attachments
+- Viewing today's showday will cause a refresh every hour so that the view
+  follows the flow of time
+- An event spanning multiple days is now shown in each of these days in month
+  and week views
+- Better CSS for browsers that don't understand border-collapse
+- Events spanning multiple days and ending on the same time as they started
+  don't have one empty cell at the bottom anymore
+
+1.1.1:
+- Holidays would show up as "0" instead of nothing if HOLIDAYS wasn't defined
+- In showmonth, holidays of the next month wouldn't show up
+- Viewing events with reminders would occasionnaly cause a crash
+
 1.1.0:
 - File attachments
 - Ability to remove/add participants to an event after it has been created

@@ -1,4 +1,4 @@
-# $Id: Chronos.pm,v 1.28 2002/07/29 16:07:40 nomis80 Exp $
+# $Id: Chronos.pm,v 1.34 2002/08/03 14:51:04 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies 
 #
@@ -38,7 +38,7 @@ use Chronos::Action::SaveUserPrefs;
 use Chronos::Action::GetFile;
 use Chronos::Action::DelFile;
 
-our $VERSION = "1.1.0";
+our $VERSION = "1.1.1";
 sub VERSION { $VERSION }
 
 sub handler {
@@ -121,6 +121,14 @@ sub header {
 
     my ( $year, $month, $day ) = $self->day;
 
+    # If the use is viewing today's showday, refresh every hour. When the user
+    # leaves for the night, he'll come back in the morning with a showday
+    # automagically showing tomorrow! (or today, whatever)
+    my @today = Today();
+    if ($self->{r}->param('action') eq 'showday' and $today[0] == $year and $today[1] == $month and $today[2] == $day) {
+        $self->{r}->header_out('Refresh', "360;url=/Chronos?action=showday&object=$object");
+    }
+
     $self->{page} .= <<EOF;
 <html>
 <head>
@@ -192,7 +200,7 @@ sub user {
 
 sub stylesheet {
     my $self = shift;
-    return $self->conf->{STYLESHEET} || "/chronos/chronos.css";
+    return $self->conf->{STYLESHEET} || "/chronos_static/chronos.css";
 }
 
 sub javascript {
@@ -446,7 +454,6 @@ EOF
         my $self = shift;
         my $dbh = $self->dbh;
         my $object = $self->action->object;
-        my $object_quoted = $dbh->quote($object);
         my ($year, $month, $day) = @_;
 
         if (not $sth_events) {
@@ -454,42 +461,55 @@ EOF
 SELECT eid, name, start_date, start_time, end_date, end_time
 FROM events
 WHERE
-    initiator = $object_quoted
-    AND start_date = ?
-ORDER BY start_time
+    initiator = ?
+    AND start_date <= ?
+    AND end_date >= ?
+ORDER BY start_date, start_time, name
 EOF
             $sth_participants = $dbh->prepare( <<EOF );
 SELECT events.eid, events.name, events.start_date, events.start_time, events.end_date, events.end_time
 FROM events, participants
 WHERE
     events.eid = participants.eid
-    AND participants.user = $object_quoted
-    AND events.start_date = ?
-ORDER BY events.start_time
+    AND participants.user = ?
+    AND events.start_date <= ?
+    AND events.end_date >= ?
+ORDER BY events.start_date, events.start_time, events.name
 EOF
         }
+
+        # The two statements above take as input:
+        # 1) The current object
+        # 2) Today's date
+        # 3) Today's date
 
         my $today = to_date($year, $month, $day);
 
         my $return = "";
         foreach my $sth ($sth_events, $sth_participants) {
-            $sth->execute($today);
+            $sth->execute($object, $today, $today);
             while (my ($eid, $name, $start_date, $start_time, $end_date, $end_time) = $sth->fetchrow_array) {
                 my ($syear, $smonth, $sday, $shour, $smin, $ssec) = (from_date($start_date), from_time($start_time));
                 my ($eyear, $emonth, $eday, $ehour, $emin, $esec) = (from_date($end_date), from_time($end_time));
                 my $range;
-                if (defined $start_time) {
-                    if (Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) == 0 ) {
-                        $range = sprintf '%d:%02d - %d:%02d', $shour, $smin, $ehour, $emin;
-                    } else {
-                        $range = sprintf '%s %d:%02d - %s %d:%02d', Date_to_Text_Long( $syear, $smonth, $sday ), $shour, $smin, Date_to_Text_Long( $eyear, $emonth, $eday ), $ehour, $emin;
+                if ( $syear == $year and $smonth == $month and $sday == $day ) {
+                    # The event starts today, we need a range
+                    if (defined $start_time) {
+                        if (Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) == 0 ) {
+                            $range = sprintf '%d:%02d - %d:%02d ', $shour, $smin, $ehour, $emin;
+                        } else {
+                            $range = sprintf '%s %d:%02d - %s %d:%02d ', Date_to_Text_Long( $syear, $smonth, $sday ), $shour, $smin, Date_to_Text_Long( $eyear, $emonth, $eday ), $ehour, $emin;
+                        }
+                    } elsif (Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) != 0 ) {
+                        $range = Date_to_Text_Long($syear, $smonth, $sday) . " - " . Date_to_Text_Long($eyear, $emonth, $eday) . " ";
                     }
-                } elsif (Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) != 0 ) {
-                    $range = Date_to_Text_Long($syear, $smonth, $sday) . " - " . Date_to_Text_Long($eyear, $emonth, $eday);
+                } else {
+                    # The events started another day and continues today. Print
+                    # no range.
                 }
 
                 $return .= <<EOF;
-            <br><a class=event href="/Chronos?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a>@{[$range ? "<br>$range" : '']}
+            <br>$range<a class=event href="/Chronos?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a>
 EOF
             }
             $sth->finish;

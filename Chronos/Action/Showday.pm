@@ -1,4 +1,4 @@
-# $Id: Showday.pm,v 1.22 2002/07/29 16:07:40 nomis80 Exp $
+# $Id: Showday.pm,v 1.25 2002/08/04 14:58:26 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -154,6 +154,7 @@ WHERE
                     end_time > ?
                 OR
                     end_time = ?
+                    AND end_date = start_date
                     AND end_time = start_time
                 OR
                     end_time IS NULL
@@ -185,6 +186,7 @@ WHERE
                     events.end_time > ?
                 OR
                     events.end_time = ?
+                    AND events.end_date = events.start_date
                     AND events.end_time = events.start_time
                 OR
                     events.end_time IS NULL
@@ -310,6 +312,14 @@ EOF
         # 2) The current hour
         # 3) The current hour + 59:59
 
+        # Is there any attachment associated with this event?
+        my $sth_attach = $dbh->prepare( <<EOF );
+SELECT COUNT(*)
+FROM attachments
+WHERE
+    eid = ?
+EOF
+
         foreach my $hour ( 0 .. 23 ) {
             $return .= <<EOF;
     <tr>
@@ -369,10 +379,14 @@ EOF
                     $description = encode_entities($description);
                     $description =~ s/\n/<br>/g;
 
-                    my $bell = defined $reminder ? "<img src=\"/chronos/bell.png\"> " : '';
+                    my $bell = defined $reminder ? "<img src=\"/chronos_static/bell.png\"> " : '';
+
+                    $sth_attach->execute($eid);
+                    my $file = $sth_attach->fetchrow_array ? "<img src=\"/chronos_static/file.png\"> " : '';
+                    $sth_attach->finish;
                     
                     $return .= <<EOF;
-        <td class=event rowspan=$rowspan>$bell$range <a class=event href="/Chronos?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a>$status_text<br>$description</td>
+        <td class=event rowspan=$rowspan>$bell$file$range <a class=event href="/Chronos?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a>$status_text<br>$description</td>
 EOF
                 }
                 $sth->finish;

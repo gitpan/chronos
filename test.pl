@@ -1,4 +1,4 @@
-# $Id: test.pl,v 1.2 2002/06/26 15:42:54 nomis80 Exp $ 
+# $Id: test.pl,v 1.4 2002/08/03 13:56:01 nomis80 Exp $ 
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test.pl'
 
@@ -7,11 +7,10 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..1\n"; }
-END {print "not ok 1\n" unless $loaded;}
-use Chronos;
-$loaded = 1;
-print "ok 1\n";
+print "
+### No tests right now.
+### Wait for Apache::Test and mod_perl 2.0
+";
 
 ######################### End of black magic.
 
