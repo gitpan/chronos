@@ -1,3 +1,30 @@
+1.1.6:
+- Fixed a bug that would display a recursion icon for non-recursive events
+  that had participants and spanned multiple days
+- Show and highlight the current hour in the day view
+- Events are now ordered horizontally in chronological order in day view
+  (thanks to Josh Hiner for submitting a bug report and test case)
+- Missing string "Everyday" for recurrence
+- New Dutch translation (thanks to Remco B. Brink <remco@rc6.org>!!)
+- SENDMAIL default value is now really /usr/sbin/sendmail
+- remindd now correctly checks for -D
+- Added a hint for people who don't understand that clicking on an hour will
+  add an event
+
+1.1.5:
+- No longer print " - " for empty date formats
+- From: in confirmation email has initiator's address
+- \n is converted to <br> in event descriptions for participants
+- Makefile now supports PREFIX
+- Event description now renders URLs and email addresses as hyperlinks
+- Smaller margin in task box for more space
+- Better handling of default configuration directive values
+- The default action is now configureable
+- Lots of comments added to the code. I am no longer ashamed of it! ;)
+- /var/run/remindd.pid now contains the real PID
+- New Swedish translation (thanks to Frank Hoffsummer
+  <frank.hoffsummer@svt.se>!!)
+
 1.1.4.2:
 - Fixed a bug that would cause the date printed at the top of a day view to
   always be today.

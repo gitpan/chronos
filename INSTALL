@@ -11,6 +11,7 @@ REQUIREMENTS
 	Date::Calc
 	Apache::Request
 	HTML::Entities
+    URI::Find
 
 On a RedHat 7.3 system, these requirements can be fulfilled by following these
 steps:
@@ -28,7 +29,9 @@ steps:
 		
 	2) Download, compile, test and install the remaining Perl modules by
 	executing this command:
-		perl -MCPAN -e 'install Apache::DBI; install Apache::Request'
+		perl -MCPAN -e 'install Apache::DBI;
+                        install Apache::Request;
+                        install URI::Find'
 	Make sure you have the basic development tools needed to compile stuff,
 	namely gcc and make.
 
@@ -192,7 +195,7 @@ INSTALLATION INSTRUCTIONS
     I haven't investigated how to reduce memory usage of MySQL because my 32 MB
     server was a fast as it could get with the above settings. If someone wants
     to write some notes about that process here, please notify
-    chronos@linuxquebec.com.
+    chronoss-devel@lists.sourceforge.net.
 
 3) Configure MySQL (optional but recommended)
 
@@ -203,7 +206,8 @@ INSTALLATION INSTRUCTIONS
     max_allowed_packets=100M". You can go as high as 4 GB, but make sure you have
     enough RAM to hold all that data in memory! ;) If someone knows of a way to
     stream POST requests to the database (instead of holding it all in memory and
-    then dumping it in the database), please write to chronos@linuxquebec.com.
+    then dumping it in the database), please write to
+    chronoss-devel@lists.sourceforge.net.
 
 4) Create the database
 
@@ -247,7 +251,8 @@ INSTALLATION INSTRUCTIONS
 
     The holiday schemes are not maintained by the Chronos team but this is open
     source and can always be improved. Mail your improvements to
-    chronos@linuxquebec.com, they will be forwarded to the appropriate entity.
+    chronoss-devel@lists.sourceforge.net, they will be forwarded to the
+    appropriate entity.
 
 8) Configure Chronos
 
@@ -255,14 +260,19 @@ INSTALLATION INSTRUCTIONS
     available. Beware: chronos_install_db will have created a /etc/chronos.conf
     file with the selected database connection information.
 
-8) Restart Apache and go to https://your.host.here/Chronos
+8) Restart Apache and go to https://your.host.here/Chronos.
+
+    NOTE: Under some circonstances, Apache loads the mod_perl module only when
+    started with the "-DPERL" option. Read the Apache documentation for more
+    information. (Yes, that really means that you are on your own here.)
 
 
 TROUBLESHOOTING
 ===============
 
 If it doesn't work, you can follow this questionnaire to help you diagnose the
-problem. If it still doesn't work, please write to chronos@linuxquebec.com.
+problem. If it still doesn't work, please write to
+chronoss-user@lists.sourceforge.net.
 Include the answers to the questions below along with copy-pasted output. Don't
 write "It doesn't work." Write "It doesn't work and here's the output: ...".
 

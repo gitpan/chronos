@@ -1,4 +1,4 @@
-# $Id: SaveEvent.pm,v 1.27 2002/08/12 18:27:35 nomis80 Exp $
+# $Id: SaveEvent.pm,v 1.3 2002/08/27 18:46:30 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -764,7 +764,7 @@ sub send_mails {
     my $chronos  = $self->{parent};
     my $text     = $chronos->gettext;
     my $dbh      = $chronos->dbh;
-    my $sendmail = $chronos->conf->{SENDMAIL} || "/usr/sbin/sendmail";
+    my $sendmail = $chronos->conf->{SENDMAIL};
     my $uri      =
       ( exists $ENV{HTTPS} ? 'https' : 'http' ) . '://'
       . $chronos->{r}->hostname
@@ -802,7 +802,7 @@ sub send_mails {
         open MAIL, "| $sendmail -oi -t";
         print MAIL <<EOF;
 To: $email_addy
-From: Chronos
+From: "$ini_name" <$ini_email>
 Subject: $subject
 
 $mail_body

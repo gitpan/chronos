@@ -1,4 +1,4 @@
-# $Id: Showweek.pm,v 1.14 2002/08/12 18:27:35 nomis80 Exp $
+# $Id: Showweek.pm,v 1.3 2002/08/28 19:15:29 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -45,8 +45,8 @@ sub header {
 <table style="margin-style:none" cellspacing=0 cellpadding=0 width="100%">
     <tr>
         <td class=header align=right colspan=2>
-            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
-            <a href="$uri?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{Day}</a>
+            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/showmonth.png" border=0>$text->{month}</a> |
+            <a href="$uri?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/showday.png" border=0>$text->{Day}</a>
         </td>
     </tr>
 </table>
@@ -112,11 +112,11 @@ sub weekview {
 <table width="100%" class=minimonth>
     <tr>
         <th class=minimonth colspan=7>
-            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$prev_prev_year&amp;month=$prev_prev_month&amp;day=$prev_prev_day">&lt;&lt;</a>&nbsp;
-            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$prev_year&amp;month=$prev_month&amp;day=$prev_day">&lt;</a>&nbsp;
+            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$prev_prev_year&amp;month=$prev_prev_month&amp;day=$prev_prev_day"><img src="/chronos_static/back2.png" border=0></a>&nbsp;
+            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$prev_year&amp;month=$prev_month&amp;day=$prev_day"><img src="/chronos_static/back.png" border=0></a>&nbsp;
             @{[encode_entities($weektext)]}&nbsp;
-            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$next_year&amp;month=$next_month&amp;day=$next_day">&gt;</a>&nbsp;
-            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$next_next_year&amp;month=$next_next_month&amp;day=$next_next_day">&gt;&gt;</a>
+            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$next_year&amp;month=$next_month&amp;day=$next_day"><img src="/chronos_static/forward.png" border=0></a>&nbsp;
+            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$next_next_year&amp;month=$next_next_month&amp;day=$next_next_day"><img src="/chronos_static/forward2.png" border=0></a>
         </th>
     </tr>
     <tr>

@@ -1,4 +1,4 @@
-# $Id: DelFile.pm,v 1.4 2002/08/09 16:00:14 nomis80 Exp $
+# $Id: DelFile.pm,v 1.1.1.1 2002/08/19 20:38:04 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #

@@ -55,6 +55,13 @@ td.dayviewhour {
 	width: 50px;
 }
 
+td.dayviewcurhour {
+    background-color: white;
+    border: 2px black dashed;
+    text-align: center;
+    width: 50px;
+}
+
 td.event {
 	background-color: white;
 	border-right: 1px black solid;

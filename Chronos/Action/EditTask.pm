@@ -1,4 +1,4 @@
-# $Id: EditTask.pm,v 1.9 2002/08/09 16:00:14 nomis80 Exp $
+# $Id: EditTask.pm,v 1.2 2002/08/28 15:58:46 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -41,9 +41,9 @@ sub header {
     <tr>
         <td class=header>@{[Date_to_Text_Long(Today())]}</td>
         <td class=header align=right>
-            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
-            <a href="$uri?action=showweek&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{week}</a> |
-            <a href="$uri?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{Day}</a>
+            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/showmonth.png" border=0>$text->{month}</a> |
+            <a href="$uri?action=showweek&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/showweek.png" border=0>$text->{week}</a> |
+            <a href="$uri?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/showday.png" border=0>$text->{Day}</a>
         </td>
     </tr>
 </table>

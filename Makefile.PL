@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.13 2002/08/09 16:00:14 nomis80 Exp $
+# $Id: Makefile.PL,v 1.4 2002/08/27 18:52:37 nomis80 Exp $
 use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
@@ -12,6 +12,7 @@ my %prereq = (
     'DBI'               => 0,
     'DBD::mysql'        => 0,
     'HTML::Entities'    => 0,
+    'URI::Find'         => 0,
 );
 
 # Manually test whether Apache::DBI is installed and add it to the
@@ -43,21 +44,22 @@ sub MY::postamble {
     my @html_files = grep { -f } <html/*>;
     my $html_files = join " ", @html_files;
     s/html\/// foreach @html_files;
-    my $html_files2 = join " ", map { "/var/www/ssl/chronos/$_" } @html_files;
+    my $html_files2 = join " ",
+      map { "\$(PREFIX)/../var/www/ssl/chronos/$_" } @html_files;
 
     my $return = <<EOF;
 lang_install:
-	mkdir -p /usr/share/chronos/lang
-	install -m 644 $langfiles /usr/share/chronos/lang
+	mkdir -p \$(PREFIX)/share/chronos/lang
+	install -m 644 $langfiles \$(PREFIX)/share/chronos/lang
 
 html_install:
-	mkdir -p /var/www/ssl/chronos_static
-	install -m 644 $html_files /var/www/ssl/chronos_static
+	mkdir -p \$(PREFIX)/../var/www/ssl/chronos_static
+	install -m 644 $html_files \$(PREFIX)/../var/www/ssl/chronos_static
 
 lang_uninstall:
 EOF
     $return .= "\trm -f "
-      . ( join " ", map { "/usr/share/chronos/$_" } grep { -f } <lang/*> )
+      . ( join " ", map { "\$(PREFIX)/share/chronos/$_" } grep { -f } <lang/*> )
       . "\n";
     $return .= <<EOF;
 

@@ -1,4 +1,4 @@
-# $Id: UserPrefs.pm,v 1.6 2002/08/09 16:00:14 nomis80 Exp $
+# $Id: UserPrefs.pm,v 1.2 2002/08/28 19:15:29 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -65,19 +65,19 @@ sub content {
 <table class=editevent>
     <tr><th colspan=2>$text->{userprefs}</th></tr>
     <tr>
-        <td>$text->{name}</td>
+        <td><img src="/chronos_static/name.png"> $text->{name}</td>
         <td><input name=name value="$name"></td>
     </tr>
     <tr>
-        <td>$text->{email}</td>
+        <td><img src="/chronos_static/email.png"> $text->{email}</td>
         <td><input name=email value="$email"></td>
     </tr>
     <tr>
-        <td>$text->{password}</td>
+        <td><img src="/chronos_static/password.png"> $text->{password}</td>
         <td><input type=password name=password></td>
     </tr>
     <tr>
-        <td>$text->{lang}</td>
+        <td><img src="/chronos_static/lang.png"> $text->{lang}</td>
         <td><select name=lang>
 EOF
 

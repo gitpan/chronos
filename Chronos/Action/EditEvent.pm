@@ -1,4 +1,4 @@
-# $Id: EditEvent.pm,v 1.26 2002/08/12 18:27:35 nomis80 Exp $
+# $Id: EditEvent.pm,v 1.6 2002/08/28 19:15:29 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -25,6 +25,7 @@ use Chronos::Action;
 use Date::Calc qw(:all);
 use Chronos::Static qw(from_datetime from_date from_time userstring);
 use HTML::Entities;
+use URI::Find::Schemeless;
 
 our @ISA = qw(Chronos::Action);
 
@@ -68,9 +69,9 @@ sub header {
     <tr>
         <td class=header>@{[Date_to_Text_Long(Today())]}</td>
         <td class=header align=right>
-            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
-            <a href="$uri?action=showweek&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{week}</a> |
-            <a href="$uri?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{Day}</a>
+            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/showmonth.png" border=0>$text->{month}</a> |
+            <a href="$uri?action=showweek&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/showweek.png" border=0>$text->{week}</a> |
+            <a href="$uri?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/showday.png" border=0>$text->{Day}</a>
         </td>
     </tr>
 </table>
@@ -177,6 +178,21 @@ EOF
         }
         $sth->finish;
 
+        my $description = $event{description};
+        $description =~ s/\n/<br>/g;
+
+        # make all links in the description clickable
+        my $finder = URI::Find::Schemeless->new(
+            sub {
+                my ( $uri, $orig_uri ) = @_;
+                return qq|<a href="$uri" target=_blank>$orig_uri</a>|;
+            }
+        );
+        $finder->find( \$description );
+        # same thing for email addresses
+        $description =~
+          s/(\w[\w.-]+\@\w[\w.-]*\.[\w]+)/<a href="mailto:$1">$1<\/a>/g;
+
         my $return = <<EOF;
 <form method=POST action="$uri" enctype="multipart/form-data" name="form1">
 <input type=hidden name=action value=saveevent>
@@ -201,10 +217,10 @@ EOF
     </tr>
     <tr>
         <td class=eventlabel>$text->{eventdescription}</td>
-        <td>$event{description}</td>
+        <td>$description</td>
     </tr>
     <tr>
-        <td class=eventlabel>$text->{eventrecur}</td>
+        <td class=eventlabel><img src="/chronos_static/recur.png"> $text->{eventrecur}</td>
         <td>$recur</td>
     </tr>
     <tr>
@@ -216,7 +232,7 @@ EOF
         <td>$participants</td>
     </tr>
     <tr>
-        <td class=eventlabel>$text->{reminder}</td>
+        <td class=eventlabel><img src="/chronos_static/bell.png"> $text->{reminder}</td>
 EOF
 
         my ( %selunit, %selnumber );
@@ -266,7 +282,7 @@ EOF
 EOF
         $return .= <<EOF;
     <tr>
-        <td class=eventlabel>$text->{attachments}</td>
+        <td class=eventlabel><img src="/chronos_static/file.png"> $text->{attachments}</td>
         <td>
 EOF
         if (
@@ -306,7 +322,7 @@ EOF
 EOF
         }
         $return .= <<EOF;
-        $text->{new_attachment} <input type=file name=new_attachment>
+        <img src="/chronos_static/filenew.png"> $text->{new_attachment} <input type=file name=new_attachment>
         </td>
     </tr>
     <tr>
@@ -328,7 +344,8 @@ EOF
         return $return;
 
     } else {
-        # Création d'un nouvel événement ou modification d'un événement existant par l'initiateur
+        # Création d'un nouvel événement ou modification d'un événement
+        # existant par l'initiateur
         my $return = <<EOF;
 <form method=POST action="$uri" enctype="multipart/form-data" name="form1">
 <input type=hidden name=action value=saveevent>
@@ -347,7 +364,7 @@ EOF
 <table class=editevent>
     <tr>
         <td class=eventlabel>$text->{eventname}</td>
-        <td><input name=name value="$event{name}"></td>
+        <td><input name=name value="$event{name}" size=52></td>
     </tr>
     <tr>
         <td class=eventlabel>$text->{eventstart}</td>
@@ -489,7 +506,7 @@ EOF
         unless ($eid) {
             $return .= <<EOF;
     <tr>
-        <td class=eventlabel>$text->{eventrecur}</td>
+        <td class=eventlabel><img src="/chronos_static/recur.png"> $text->{eventrecur}</td>
         <td>
             <select name=recur>
                 <option value="NULL">$text->{eventnotrecur}</option>
@@ -551,7 +568,7 @@ EOF
               : '-';
             $return .= <<EOF;
     <tr>
-        <td class=eventlabel>$text->{eventrecur}</td>
+        <td class=eventlabel><img src="/chronos_static/recur.png"> $text->{eventrecur}</td>
         <td>$recur</td>
     </tr>
     <tr>
@@ -636,7 +653,7 @@ EOF
             $sth->finish;
             $return .= <<EOF;
                 </select><br>
-                $text->{eventconfirm} <input type=checkbox name=confirm>
+                <img src="/chronos_static/email.png"> $text->{eventconfirm} <input type=checkbox name=confirm>
             </td>
         </tr>
 EOF
@@ -669,14 +686,14 @@ EOF
         if ( not $eid ) {
             $return .= <<EOF;
     <tr>
-        <td class=eventlabel>$text->{eventconfirm}</td>
+        <td class=eventlabel><img src="/chronos_static/email.png"> $text->{eventconfirm}</td>
         <td><input type=checkbox name=confirm></td>
     </tr>
 EOF
         }
         $return .= <<EOF;
     <tr>
-        <td class=eventlabel>$text->{reminder}</td>
+        <td class=eventlabel><img src="/chronos_static/bell.png"> $text->{reminder}</td>
 EOF
 
         my ( %selunit, %selnumber );
@@ -728,7 +745,7 @@ EOF
 EOF
         $return .= <<EOF;
     <tr>
-        <td class=eventlabel>$text->{attachments}</td>
+        <td class=eventlabel><img src="/chronos_static/file.png"> $text->{attachments}</td>
         <td>
 EOF
         if (
@@ -769,7 +786,7 @@ EOF
 EOF
         }
         $return .= <<EOF;
-            $text->{new_attachment} <input type=file name=new_attachment>
+            <img src="/chronos_static/filenew.png"> $text->{new_attachment} <input type=file name=new_attachment>
         </td>
     </tr>
 EOF

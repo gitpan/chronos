@@ -1,4 +1,4 @@
-# $Id: Authen.pm,v 1.5 2002/08/09 16:00:14 nomis80 Exp $
+# $Id: Authen.pm,v 1.2 2002/08/28 14:30:57 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies 
 #
@@ -20,20 +20,28 @@
 #
 package Chronos::Authen;
 
+# This module does simple Basic authentication, ie. verify if the password sent
+# matches the user.
+
 use strict;
 use Apache::Constants qw(:common);
 use Chronos;
 
+# This is a boilerplate authentication handler function.
 sub handler {
     my $r = shift;
 
     my ( $res, $sent_pw ) = $r->get_basic_auth_pw;
+    # I don't know what this statement does, I copied it from "Writing Apache
+    # Modules with Perl and C".
     return $res if $res != OK;
     my $user = $r->connection->user;
 
     my $reason = authenticate( $r, $user, $sent_pw );
 
     if ($reason) {
+        # An authenticated request returns no $reason. We log the failure and
+        # return the appropriate error code.
         $r->note_basic_auth_failure;
         $r->log_reason( $reason, $r->filename );
         return AUTH_REQUIRED;
@@ -41,8 +49,10 @@ sub handler {
     return OK;
 }
 
+# Authenticate the user. This is the specific part.
 sub authenticate {
     my ( $r, $user, $sent_pw ) = @_;
+    # A simple security check. Don't try to fool me!
     return "empty user names and passwords disallowed"
       unless $user and $sent_pw;
 
@@ -50,6 +60,7 @@ sub authenticate {
     my $dbh     = $chronos->dbh;
     $user    = $dbh->quote($user);
     $sent_pw = $dbh->quote($sent_pw);
+    # A simple database select will reveal if the user is authentified.
     unless (
         $dbh->selectrow_array(
 "SELECT user FROM user WHERE user = $user AND password = PASSWORD($sent_pw)"

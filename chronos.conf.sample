@@ -1,11 +1,27 @@
+# The database type. Note that Chronos has not been tested with anything other
+# than MySQL. Possible values: read about DBI
+# Default: mysql
+#DB_TYPE=mysql
+
+# The database host
+# Default: localhost
+#DB_HOST=localhost
+
+# The database server port
+# Default: 3306
+#DB_PORT=3306
+
 # The database name
-DB_NAME=chronos
+# Default: chronos
+#DB_NAME=chronos
 
 # The user that will be used for connecting to the database
-DB_USER=chronos
+# Default: chronos
+#DB_USER=chronos
 
 # The password that will be used for connecting to the database
-DB_PASS=secret
+# Default: none
+#DB_PASS=secret
 
 # The holiday profile that will be used. By default holidays are not used. Use
 # chronosadmin --show-holidays to know what profiles are available.
@@ -32,11 +48,16 @@ DB_PASS=secret
 #MONTH_NOTIME_DATE_FORMAT=
 #MONTH_MULTIDAY_NOTIME_DATE_FORMAT=%F
 #WEEK_DATE_FORMAT=%k:%M
-#WEEK_MULTIDAY_DATE_FORMAt=%F %k:%M
+#WEEK_MULTIDAY_DATE_FORMAT=%F %k:%M
 #WEEK_NOTIME_DATE_FORMAT=
 #WEEK_MULTIDAY_NOTIME_DATE_FORMAT=%F
 #MINIMONTH_DATE_FORMAT=%(long)
-#HEADER_DATE_FORMAT=%(long)
+#HEADER_DATE_FORMAT=%(long) %k:%M
+#DAYVIEW_DATE_FORMAT=%(long)
 #
 # Alternative example (this prints "It is now Mon Jan 02")
 #HEADER_DATE_FORMAT=It is now %a %b %g
+
+# Default action (ie. what to do when logging in)
+# Default: showday
+#DEFAULT_ACTION=showday

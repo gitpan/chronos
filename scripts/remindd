@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: remindd,v 1.11 2002/08/12 18:27:35 nomis80 Exp $
+# $Id: remindd,v 1.4 2002/09/05 00:46:08 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -35,15 +35,17 @@ GetOptions(
   )
   or die sprintf "$text->{remindd_usage}\n", $0;
 
-unless ( $ARGV[0] eq '-D' ) {
+unless ( $debug ) {
     printf "$text->{remindd_forking}\n";
     my $pid = fork;
-    exit if $pid;
+    if ( $pid ) {
+        open PID, "> /var/run/remindd.pid";
+        print PID "$pid\n";
+        close PID;
+        exit;
+    }
     die sprintf "$text->{remindd_forkerror}\n", $! unless defined $pid;
     setsid() or die sprintf "$text->{remindd_setsiderror}\n", $!;
-    open PID, "> /var/run/remindd.pid";
-    print PID "$pid\n";
-    close PID;
 }
 
 our $conf = conf();
@@ -122,8 +124,7 @@ sub sendmail {
     $mail =~ s/\%\%DESCRIPTION\%\%/$event->{description}/g;
     $mail =~ s/\%\%VERSION\%\%/$Chronos::Static::VERSION/g;
 
-    my $sendmail = $conf->{SENDMAIL} || "/usr/sbin/sendmail";
-    open MAIL, "| $sendmail -oi -t";
+    open MAIL, "| $conf->{SENDMAIL} -oi -t";
     print MAIL $mail;
     close MAIL;
 }

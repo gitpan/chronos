@@ -1,4 +1,4 @@
-# $Id: Static.pm,v 1.27 2002/08/13 12:53:28 nomis80 Exp $
+# $Id: Static.pm,v 1.9 2002/09/17 00:20:17 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -20,15 +20,23 @@
 #
 package Chronos::Static;
 
+# This package contains functions that should be useable outside of mod_perl.
+# Standalone scripts can therefore include this module and use its functions.
+# remindd and chronosadmin do so.
+
 use strict;
 use Exporter;
 use HTML::Entities;
+# If we are running under mod_perl, we can use Apache::DBI, which will cache
+# database handles.
 if ( exists $ENV{MOD_PERL} ) {
-    eval "use Apache::DBI;";
+    eval { require Apache::DBI };
     die $@ if $@;
+    die "Couldn't include Apache::DBI: $!\n" if $!;
 } else {
-    eval "use DBI;";
+    eval { require DBI };
     die $@ if $@;
+    die "Couldn't include DBI: $!\n" if $!;
 }
 
 our @ISA       = qw(Exporter);
@@ -36,15 +44,8 @@ our @EXPORT_OK =
   qw(&gettext &conf &dbh &datetime2values &Compare_YMDHMS &to_datetime &from_datetime &Compare_YMD &from_date &userstring &to_date &lang &get &from_time &to_time);
 our %EXPORT_TAGS = ( all => \@EXPORT_OK );
 
-our $VERSION = '1.1.4.2';
+our $VERSION = '1.1.6';
 sub VERSION { $VERSION }
-
-=pod
-
-Ce module contient des fonctions statiques pouvant être utilisées par des script
-ou autre.
-
-=cut
 
 sub gettext {
     my $lang = shift || lang();
@@ -124,6 +125,33 @@ sub conf {
         next unless $key and $value;
         $key = uc $key;
         $conf{$key} = $value;
+
+        # Defaults
+        $conf{DB_TYPE}                  ||= 'mysql';
+        $conf{DB_HOST}                  ||= 'localhost';
+        $conf{DB_PORT}                  ||= 3306;
+        $conf{DB_NAME}                  ||= 'chronos';
+        $conf{DB_USER}                  ||= 'chronos';
+        $conf{DB_PASS}                  ||= '';
+        $conf{HOLIDAYS}                 ||= '';
+        $conf{SENDMAIL}                 ||= '/usr/sbin/sendmail';
+        $conf{STYLESHEET}               ||= '/chronos_static/chronos.css';
+        $conf{DAY_DATE_FORMAT}          ||= '%k:%M';
+        $conf{DAY_MULTIDAY_DATE_FORMAT} ||= '%(long) %k:%M';
+        $conf{DAY_NOTIME_DATE_FORMAT}   ||= '';
+        $conf{DAY_MULTIDAY_NOTIME_DATE_FORMAT}   ||= '%(long)';
+        $conf{MONTH_DATE_FORMAT}                 ||= '%k:%M';
+        $conf{MONTH_MULTIDAY_DATE_FORMAT}        ||= '%F %k:%M';
+        $conf{MONTH_NOTIME_DATE_FORMAT}          ||= '';
+        $conf{MONTH_MULTIDAY_NOTIME_DATE_FORMAT} ||= '%F';
+        $conf{WEEK_DATE_FORMAT}                  ||= '%k:%M';
+        $conf{WEEK_MULTIDAY_DATE_FORMAT}         ||= '%F %k:%M';
+        $conf{WEEK_NOTIME_DATE_FORMAT}           ||= '';
+        $conf{WEEK_MULTIDAY_NOTIME_DATE_FORMAT}  ||= '%F';
+        $conf{MINIMONTH_DATE_FORMAT}             ||= '%(long)';
+        $conf{HEADER_DATE_FORMAT}                ||= '%(long) %k:%M';
+        $conf{DAYVIEW_DATE_FORMAT}               ||= '%(long)';
+        $conf{DEFAULT_ACTION}                    ||= 'showday';
     }
     return \%conf;
 }

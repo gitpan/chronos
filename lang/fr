@@ -1,4 +1,4 @@
-# $Id: fr,v 1.23 2002/08/12 18:31:55 nomis80 Exp $
+# $Id: fr,v 1.4 2002/09/16 23:20:31 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -177,6 +177,8 @@ it=Italien
 de=Allemand
 no=Norvégien
 po=Portugais
+sv=Suédois
+nl=Hollandais
 attachments=Fichiers attachés:
 new_attachment=Nouveau fichier attaché:
 participants_to_add=Ajout de participants:
@@ -187,3 +189,4 @@ remindd_forking=Je fork...
 remindd_forkerror=Je n'ai pas pu forker: %s
 remindd_setsiderror=Je n'ai pas pu créer une nouvelle session: %s
 remindd_usage=Usage: %s [-D] [-f <fichier de config>]
+clickhour=Cliquez sur une heure pour ajouter un événement

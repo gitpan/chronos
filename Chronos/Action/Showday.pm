@@ -1,4 +1,4 @@
-# $Id: Showday.pm,v 1.29 2002/08/13 12:53:28 nomis80 Exp $
+# $Id: Showday.pm,v 1.12 2002/09/16 23:20:31 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -26,6 +26,7 @@ use Date::Calc qw(:all);
 use Chronos::Static qw(from_date from_time to_date to_time Compare_YMD);
 use HTML::Entities;
 use Chronos::Action::Showmonth;
+use URI::Find::Schemeless;
 
 our @ISA = qw(Chronos::Action);
 
@@ -40,16 +41,15 @@ sub header {
     my $text = $self->{parent}->gettext;
     my $uri  = $self->{parent}{r}->uri;
     my $date =
-      $self->{parent}
-      ->format_date( $self->{parent}->conf->{HEADER_DATE_FORMAT} || '%(long)',
+      $self->{parent}->format_date( $self->{parent}->conf->{HEADER_DATE_FORMAT},
         Today_and_Now() );
     return <<EOF;
 <table style="margin-style:none" cellspacing=0 cellpadding=0 width="100%">
     <tr>
         <td class=header>$date</td>
-        <td class=header align=right>
-            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
-            <a href="$uri?action=showweek&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{week}</a>
+        <td class=header align=right valign=bottom>
+            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/showmonth.png" border=0>$text->{month}</a> |
+            <a href="$uri?action=showweek&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos_static/showweek.png" border=0>$text->{week}</a>
         </td>
     </tr>
 </table>
@@ -95,7 +95,7 @@ sub taskview {
 <!-- Begin Chronos::Action::Showday::tasksview -->
 <table class=taskview width="100%">
     <tr><th class=minimonth>$text->{tasklist}</th></tr>
-    <tr><td><ul>
+    <tr><td>
 EOF
 
     my $sth =
@@ -106,7 +106,7 @@ EOF
     while ( my ( $tid, $title, $priority ) = $sth->fetchrow_array ) {
         $title = encode_entities($title);
         $return .=
-qq(<li>($priority) <a href="$uri?action=edittask&amp;tid=$tid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$title</a></li>);
+qq(&bull; <img src="/chronos_static/priority$priority.png"> <a href="$uri?action=edittask&amp;tid=$tid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$title</a><br>);
     }
     $sth->finish;
     $return .= qq(</ul></td></tr>\n) . <<EOF;
@@ -237,8 +237,7 @@ EOF
         $max_simul_events = $simul_events if $simul_events > $max_simul_events;
     }
 
-    my $daystring =
-      $chronos->format_date( $conf->{HEADER_DATE_FORMAT} || '%(long)',
+    my $daystring = $chronos->format_date( $conf->{DAYVIEW_DATE_FORMAT},
         $year, $month, $day, 0, 0, 0 );
     my $holidays =
       Chronos::Action::Showmonth::get_holidays( $self, $year, $month, $day );
@@ -248,13 +247,24 @@ EOF
     </tr>
 EOF
 
+    my ( $to_year, $to_month, $to_day, $to_hour ) = Today_and_Now();
     if ( $max_simul_events == 0 ) {
         # Go fast, don't check DB at each hour. We know anyway that there are no
         # events today.
         foreach my $hour ( 0 .. 23 ) {
+            my $class;
+            if (    $year == $to_year
+                and $month == $to_month
+                and $day == $to_day
+                and $hour == $to_hour )
+            {
+                $class = 'dayviewcurhour';
+            } else {
+                $class = 'dayviewhour';
+            }
             $return .= <<EOF;
     <tr>
-        <td class=dayviewhour><a href="$uri?action=editevent&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day&amp;hour=$hour">$hour:00</a></td>
+        <td class=$class><a href="$uri?action=editevent&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day&amp;hour=$hour">$hour:00</a></td>
         <td class=dayview>&nbsp;</td>
     </tr>
 EOF
@@ -267,7 +277,7 @@ EOF
         # Other hours only display the events starting then, thanks to HTML's
         # rowspan.
         my $sth_events_first_hour = $dbh->prepare( <<EOF );
-SELECT eid, name, start_date, start_time, end_date, end_time, description, reminder
+SELECT eid, name, start_date, start_time, end_date, end_time, description, reminder, rid
 FROM events
 WHERE
     initiator = $user_quoted
@@ -282,9 +292,10 @@ WHERE
                     start_time IS NULL
             )
     )
+ORDER BY start_date, start_time
 EOF
         my $sth_participants_first_hour = $dbh->prepare( <<EOF );
-SELECT events.eid, events.name, events.start_date, events.start_time, events.end_date, events.end_time, events.description, participants.reminder, participants.status
+SELECT events.eid, events.name, events.start_date, events.start_time, events.end_date, events.end_time, events.description, participants.reminder, events.rid, participants.status
 FROM events, participants
 WHERE
     events.eid = participants.eid
@@ -300,6 +311,7 @@ WHERE
                     events.start_time IS NULL
             )
     )
+ORDER BY events.start_date, events.start_time
 EOF
 
         # The two statements above take as input:
@@ -309,16 +321,17 @@ EOF
 
         # Find the events happening between a given hour and hour + 1.
         my $sth_events = $dbh->prepare( <<EOF );
-SELECT eid, name, start_date, start_time, end_date, end_time, description, reminder
+SELECT eid, name, start_date, start_time, end_date, end_time, description, reminder, rid
 FROM events
 WHERE
     initiator = $user_quoted
     AND start_date = ?
     AND start_time >= ?
     AND start_time <= ?
+ORDER BY start_date, start_time
 EOF
         my $sth_participants = $dbh->prepare( <<EOF );
-SELECT events.eid, events.name, events.start_date, events.start_time, events.end_date, events.end_time, events.description, participants.reminder, participants.status
+SELECT events.eid, events.name, events.start_date, events.start_time, events.end_date, events.end_time, events.description, participants.reminder, events.rid, participants.status
 FROM events, participants
 WHERE
     events.eid = participants.eid
@@ -326,6 +339,7 @@ WHERE
     AND events.start_date = ?
     AND events.start_time >= ?
     AND events.start_time <= ?
+ORDER BY events.start_date, events.start_time
 EOF
 
         # The two statements above take as input:
@@ -342,9 +356,19 @@ WHERE
 EOF
 
         foreach my $hour ( 0 .. 23 ) {
+            my $class;
+            if (    $year == $to_year
+                and $month == $to_month
+                and $day == $to_day
+                and $hour == $to_hour )
+            {
+                $class = 'dayviewcurhour';
+            } else {
+                $class = 'dayviewhour';
+            }
             $return .= <<EOF;
     <tr>
-        <td class=dayviewhour><a href="$uri?action=editevent&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day&amp;hour=$hour">$hour:00</a></td>
+        <td class=$class><a href="$uri?action=editevent&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day&amp;hour=$hour">$hour:00</a></td>
 EOF
 
             my @sths;
@@ -370,9 +394,9 @@ EOF
             foreach my $sth (@sths) {
                 while (
                     my (
-                        $eid,         $name,     $start_date,
-                        $start_time,  $end_date, $end_time,
-                        $description, $reminder, $status
+                        $eid,      $name,     $start_date,  $start_time,
+                        $end_date, $end_time, $description, $reminder,
+                        $rid,      $status
                     )
                     = $sth->fetchrow_array
                   )
@@ -414,23 +438,22 @@ EOF
                             ) == 0
                           )
                         {
-                            $format = $conf->{DAY_DATE_FORMAT} || '%k:%M';
+                            $format = $conf->{DAY_DATE_FORMAT};
                         } else {
-                            $format = $conf->{DAY_MULTIDAY_DATE_FORMAT}
-                              || '%(long) %k:%M';
+                            $format = $conf->{DAY_MULTIDAY_DATE_FORMAT};
                         }
                     } elsif (
                         Compare_YMD( $syear, $smonth, $sday, $eyear, $emonth,
                             $eday ) != 0
                       )
                     {
-                        $format = $conf->{DAY_MULTIDAY_NOTIME_DATE_FORMAT}
-                          || '%(long)';
+                        $format = $conf->{DAY_MULTIDAY_NOTIME_DATE_FORMAT};
                     } else {
-                        $format = $conf->{DAY_NOTIME_DATE_FORMAT} || '';
+                        $format = $conf->{DAY_NOTIME_DATE_FORMAT};
                     }
-                    my $range = encode_entities(
-                        sprintf '%s - %s',
+                    my $range = $format
+                      ? encode_entities(
+                        sprintf '%s - %s ',
                         $chronos->format_date(
                             $format, $syear, $smonth, $sday,
                             $shour,  $smin,  0
@@ -439,7 +462,8 @@ EOF
                             $format, $eyear, $emonth, $eday,
                             $ehour,  $emin,  0
                         )
-                    );
+                      )
+                      : '';
 
                     my $status_text;
                     my $textkey = "status_$status";
@@ -448,6 +472,24 @@ EOF
                     }
                     $description = encode_entities($description);
                     $description =~ s/\n/<br>/g;
+
+                    # make all links in the description clickable
+                    my $finder = URI::Find::Schemeless->new(
+                        sub {
+                            my ( $uri, $orig_uri ) = @_;
+                            return
+                              qq|<a href="$uri" target=_blank>$orig_uri</a>|;
+                        }
+                    );
+                    $finder->find( \$description );
+                    # same thing for email addresses
+                    $description =~
+s/(\w[\w.-]+\@\w[\w.-]*\.[\w]+)/<a href="mailto:$1">$1<\/a>/g;
+
+                    my $recur =
+                      defined $rid
+                      ? "<img src=\"/chronos_static/recur.png\"> "
+                      : '';
 
                     my $bell =
                       defined $reminder
@@ -462,7 +504,7 @@ EOF
                     $sth_attach->finish;
 
                     $return .= <<EOF;
-        <td class=event rowspan=$rowspan>$bell$file$range <a class=event href="$uri?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a>$status_text<br>$description</td>
+        <td class=event rowspan=$rowspan>$recur$bell$file$range<a class=event href="$uri?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a>$status_text<br>$description</td>
 EOF
                 }
                 $sth->finish;
@@ -490,6 +532,16 @@ EOF
     }
 
     $return .= <<EOF;
+</table>
+
+<table style="border:none">
+    <tr>
+        <td width=50 align=center><img src="/chronos_static/up.png"></td>
+        <td></td>
+    </tr>
+    <tr>
+        <td colspan=2><font size="-1">$text->{clickhour}</font></td>
+    </tr>
 </table>
 <!-- End Chronos::Action::Showday::dayview -->
 EOF
