@@ -1,4 +1,4 @@
-# $Id: Showweek.pm,v 1.7 2002/07/18 12:37:02 nomis80 Exp $
+# $Id: Showweek.pm,v 1.11 2002/07/29 16:07:40 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -24,6 +24,7 @@ use strict;
 use Chronos::Action;
 use Date::Calc qw(:all);
 use HTML::Entities;
+use Chronos::Action::Showmonth;
 
 our @ISA = qw(Chronos::Action);
 
@@ -40,7 +41,7 @@ sub header {
 
     return <<EOF;
 <!-- Begin Chronos::Action::Showweek header -->
-<table style="border:hidden; margin-style:none" cellspacing=0 cellpadding=0 width="100%">
+<table style="margin-style:none" cellspacing=0 cellpadding=0 width="100%">
     <tr>
         <td class=header align=right colspan=2>
             <a href="/Chronos?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
@@ -64,7 +65,7 @@ sub content {
     my $tasks = $self->Chronos::Action::Showday::taskview($year, $month, $day);
 
     return <<EOF;
-<table width="100%" style="border:hidden">
+<table width="100%" style="border:none">
     <tr>
         <td colspan=2>
 $weekview
@@ -74,7 +75,7 @@ $weekview
         <td valign=top>
 $minimonth
         </td>
-        <td valign=top align=right>
+        <td valign=top>
 $tasks
         </td>
     </tr>
@@ -125,25 +126,18 @@ EOF
     <tr>
 EOF
 
-    my $dbh = $chronos->dbh;
-    my $object_quoted = $dbh->quote($self->object);
-    my $sth_events = $dbh->prepare("SELECT eid, name, start, end FROM events WHERE initiator = $object_quoted AND start >= ? AND start < ? ORDER BY start");
-    my $sth_participants = $dbh->prepare("SELECT events.eid, events.name, events.start, events.end FROM events, participants WHERE events.eid = participants.eid AND participants.user = $object_quoted AND events.start >= ? AND events.start < ? ORDER BY events.start");
-
     my $dow = Day_of_Week($year, $month, $day);
     foreach ( 1 .. 7 ) {
         my ($tyear, $tmonth, $tday) = Add_Delta_Days($year, $month, $day, -($dow - $_));
+        my $month_text;
         if ($_ == 1 or $tday == 1) {
-            my $month_text = ucfirst Month_to_Text($tmonth);
-            $return .= <<EOF;
-        <td class=daycurmonth height=80><a class=daycurmonth href="/Chronos?action=showday&amp;object=$object&amp;year=$tyear&amp;month=$tmonth&amp;day=$tday">$tday</a> $month_text
-EOF
-        } else {
-            $return .= <<EOF;
-        <td class=daycurmonth height=80><a class=daycurmonth href="/Chronos?action=showday&amp;object=$object&amp;year=$tyear&amp;month=$tmonth&amp;day=$tday">$tday</a>
-EOF
+            $month_text = ucfirst Month_to_Text($tmonth);
         }
-        $return .= $chronos->events($tyear, $tmonth, $tday, $sth_events, $sth_participants);
+        my $holidays = Chronos::Action::Showmonth::get_holidays($self, $tyear, $tmonth, $tday);
+        $return .= <<EOF;
+        <td class=daycurmonth height=80><a class=daycurmonth href="/Chronos?action=showday&amp;object=$object&amp;year=$tyear&amp;month=$tmonth&amp;day=$tday">$tday</a> $month_text$holidays
+EOF
+        $return .= $chronos->events_per_day($tyear, $tmonth, $tday);
         $return .= "</td>";
     }
 

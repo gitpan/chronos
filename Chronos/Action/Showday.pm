@@ -1,4 +1,4 @@
-# $Id: Showday.pm,v 1.17 2002/07/16 20:04:42 nomis80 Exp $
+# $Id: Showday.pm,v 1.22 2002/07/29 16:07:40 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -23,8 +23,9 @@ package Chronos::Action::Showday;
 use strict;
 use Chronos::Action;
 use Date::Calc qw(:all);
-use Chronos::Static qw(from_datetime Compare_YMD);
+use Chronos::Static qw(from_date from_time to_date to_time Compare_YMD);
 use HTML::Entities;
+use Chronos::Action::Showmonth;
 
 our @ISA = qw(Chronos::Action);
 
@@ -38,7 +39,7 @@ sub header {
     my ( $year, $month, $day ) = $self->{parent}->day;
     my $text = $self->{parent}->gettext;
     return <<EOF;
-<table style="border:hidden; margin-style:none" cellspacing=0 cellpadding=0 width="100%">
+<table style="margin-style:none" cellspacing=0 cellpadding=0 width="100%">
     <tr>
         <td class=header>@{[Date_to_Text_Long(Today())]}</td>
         <td class=header align=right>
@@ -61,7 +62,7 @@ sub content {
     my $taskview = $self->taskview($year, $month, $day);
 
     return <<EOF;
-<table width="100%" style="border:hidden">
+<table width="100%" style="border:none">
     <tr>
         <td valign=top>
 $minimonth
@@ -124,17 +125,92 @@ sub dayview {
 EOF
 
     my $user_quoted            = $dbh->quote( $self->object );
-    my $sth_simul_events       = $dbh->prepare( "SELECT COUNT(*) FROM events WHERE initiator = $user_quoted AND ((start < ? AND end > ?) OR (start = ? and end = start))" );
-    my $sth_simul_participants =
-      $dbh->prepare(
-          "SELECT COUNT(*) FROM events, participants WHERE events.eid = participants.eid AND participants.user = $user_quoted AND ((events.start < ? AND events.end > ?) OR (events.start = ? AND events.end = events.start))");
+
+    # These statements are my pride and my joy
+
+    # Find how many events are happening concurrently +- 1 hour (ie. will occupy
+    # the same row when displayed in a grid having 1 row for each hour). This
+    # statement find the events the user himself started.
+    my $sth_simul_events       = $dbh->prepare( <<EOF );
+SELECT COUNT(*) 
+FROM events 
+WHERE
+    initiator = $user_quoted 
+    AND (
+            start_date < ?
+        OR
+            start_date = ?
+            AND (
+                    start_time <= ?
+                OR
+                    start_time IS NULL
+            )
+    )
+    AND (
+            end_date > ?
+        OR
+            end_date = ?
+            AND (
+                    end_time > ?
+                OR
+                    end_time = ?
+                    AND end_time = start_time
+                OR
+                    end_time IS NULL
+            )
+    )
+EOF
+    # This statement finds the events the user is participant of.
+    my $sth_simul_participants = $dbh->prepare( <<EOF );
+SELECT COUNT(*)
+FROM events, participants
+WHERE
+    events.eid = participants.eid
+    AND participants.user = $user_quoted
+    AND (
+            events.start_date < ?
+        OR
+            events.start_date = ?
+            AND (
+                    events.start_time < ?
+                OR
+                    events.start_time IS NULL
+            )
+    )
+    AND (
+            events.end_date > ?
+        OR
+            events.end_date = ?
+            AND (
+                    events.end_time > ?
+                OR
+                    events.end_time = ?
+                    AND events.end_time = events.start_time
+                OR
+                    events.end_time IS NULL
+            )
+    )
+EOF
+    
+    # The two statements defined above take these parameters:
+    # 1) The date of the current day
+    # 2) The date of the current day
+    # 3) The current hour + 59:59
+    # 4) The date of the current day
+    # 5) The date of the current day
+    # 6) The current hour
+    # 7) The current hour
+
+
+    my $today_date = to_date($year, $month, $day);
+    
     my $max_simul_events;
     foreach my $hour ( 0 .. 23 ) {
-        my $datetime_min = sprintf '%04d-%02d-%02d %02d-00-00', $year, $month, $day, $hour;
-        my ( $year_max, $month_max, $day_max, $hour_max ) = Add_Delta_DHMS( $year, $month, $day, $hour, 0, 0, 0, 1, 0, 0 );
-        my $datetime_max = sprintf '%04d-%02d-%02d %02d-00-00', $year_max, $month_max, $day_max, $hour_max;
-        $sth_simul_events->execute( $datetime_max,       $datetime_min, $datetime_min );
-        $sth_simul_participants->execute( $datetime_max, $datetime_min, $datetime_min );
+        my $curhour_time = to_time($hour);
+        my $nexthour_time = to_time($hour, 59, 59);
+
+        $sth_simul_events->execute( $today_date, $today_date, $nexthour_time, $today_date, $today_date, $curhour_time, $curhour_time );
+        $sth_simul_participants->execute( $today_date, $today_date, $nexthour_time, $today_date, $today_date, $curhour_time, $curhour_time );
         my $simul_events = $sth_simul_events->fetchrow_array + $sth_simul_participants->fetchrow_array;
         $sth_simul_events->finish;
         $sth_simul_participants->finish;
@@ -142,13 +218,16 @@ EOF
     }
 
     my $daystring = Date_to_Text_Long($year, $month, $day);
+    my $holidays = Chronos::Action::Showmonth::get_holidays($self, $year, $month, $day);
     $return .= <<EOF;
         <th style="border-top:hidden; border-left:hidden;"></th>
-        <th class=dayview colspan=@{[($max_simul_events || 1) + 0]}>$daystring@{[$year == 1983 && $month == 2 && $day == 3 ? " (Simon Perreault's birth day!)" : '']}</th>
+        <th class=dayview colspan=@{[($max_simul_events || 1) + 0]}>$daystring@{[$year == 1983 && $month == 2 && $day == 3 ? " (Simon Perreault's birth day!)" : '']}$holidays</th>
     </tr>
 EOF
 
     if ( $max_simul_events == 0 ) {
+        # Go fast, don't check DB at each hour. We know anyway that there are no
+        # events today.
         foreach my $hour ( 0 .. 23 ) {
             $return .= <<EOF;
     <tr>
@@ -158,57 +237,128 @@ EOF
 EOF
         }
     } else {
-        my $sth_events_first_hour = $dbh->prepare("SELECT eid, name, start, end, description, reminder FROM events WHERE initiator = $user_quoted AND events.start <= ? AND end >= ?");
-        my $sth_participants_first_hour = $dbh->prepare("SELECT events.eid, events.name, events.start, events.end, events.description, participants.reminder, participants.status FROM events, participants WHERE events.eid = participants.eid AND participants.user = $user_quoted AND events.start <= ? AND events.end >= ?");
+
+        # Find the events happening for the first hour of the day
+        # (that's midnight to one). This hour is different from the others
+        # because events started before the current day have to be displayed.
+        # Other hours only display the events starting then, thanks to HTML's
+        # rowspan.
+        my $sth_events_first_hour = $dbh->prepare( <<EOF );
+SELECT eid, name, start_date, start_time, end_date, end_time, description, reminder
+FROM events
+WHERE
+    initiator = $user_quoted
+    AND end_date >= ?
+    AND (
+            start_date < ?
+        OR
+            start_date = ?
+            AND (
+                    start_time < '01:00:00'
+                OR
+                    start_time IS NULL
+            )
+    )
+EOF
+        my $sth_participants_first_hour = $dbh->prepare( <<EOF );
+SELECT events.eid, events.name, events.start_date, events.start_time, events.end_date, events.end_time, events.description, participants.reminder, participants.status
+FROM events, participants
+WHERE
+    events.eid = participants.eid
+    AND participants.user = $user_quoted
+    AND events.end_date >= ?
+    AND (
+            events.start_date < ?
+        OR
+            events.start_date = ?
+            AND (
+                    events.start_time < '01:00:00'
+                OR
+                    events.start_time IS NULL
+            )
+    )
+EOF
+
+        # The two statements above take as input:
+        # 1) The current date
+        # 2) The current date
+        # 3) The current date
         
-        my $sth_events =
-          $dbh->prepare( "SELECT eid, name, start, end, description, reminder FROM events WHERE initiator = $user_quoted AND start >= ? AND start < ?");
-        my $sth_participants =
-          $dbh->prepare(
-"SELECT events.eid, events.name, events.start, events.end, events.description, participants.reminder, participants.status FROM events, participants WHERE events.eid = participants.eid AND participants.user = $user_quoted AND events.start >= ? AND events.start < ?"
-          );
+        # Find the events happening between a given hour and hour + 1.
+        my $sth_events = $dbh->prepare( <<EOF );
+SELECT eid, name, start_date, start_time, end_date, end_time, description, reminder
+FROM events
+WHERE
+    initiator = $user_quoted
+    AND start_date = ?
+    AND start_time >= ?
+    AND start_time <= ?
+EOF
+        my $sth_participants = $dbh->prepare( <<EOF );
+SELECT events.eid, events.name, events.start_date, events.start_time, events.end_date, events.end_time, events.description, participants.reminder, participants.status
+FROM events, participants
+WHERE
+    events.eid = participants.eid
+    AND participants.user = $user_quoted
+    AND events.start_date = ?
+    AND events.start_time >= ?
+    AND events.start_time <= ?
+EOF
+
+        # The two statements above take as input:
+        # 1) The current date
+        # 2) The current hour
+        # 3) The current hour + 59:59
 
         foreach my $hour ( 0 .. 23 ) {
-            my ($sth1, $sth2);
-            if ($hour == 0) {
-                $sth1 = $sth_events_first_hour;
-                $sth2 = $sth_participants_first_hour;
-            } else {
-                $sth1 = $sth_events;
-                $sth2 = $sth_participants;
-            }
             $return .= <<EOF;
     <tr>
         <td class=dayviewhour><a href="/Chronos?action=editevent&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day&amp;hour=$hour">$hour:00</a></td>
 EOF
-            my $datetime_min = sprintf '%04d-%02d-%02d %02d-00-00', $year, $month, $day, $hour;
-            my ( $year_max, $month_max, $day_max, $hour_max ) = Add_Delta_DHMS( $year, $month, $day, $hour, 0, 0, 0, 1, 0, 0 );
-            my $datetime_max = sprintf '%04d-%02d-%02d %02d-00-00', $year_max, $month_max, $day_max, $hour_max;
 
-            foreach my $sth ($sth1, $sth2) {
-                if ($hour == 0) {
-                    $sth->execute( $datetime_min, $datetime_min );
-                } else {
-                    $sth->execute( $datetime_min, $datetime_max );
-                }
-                while ( my ( $eid, $name, $start, $end, $description, $reminder, $status ) = $sth->fetchrow_array ) {
-                    my ($syear, $smonth, $sday, $shour, $smin, $ssec) = from_datetime($start);
-                    my ($eyear, $emonth, $eday, $ehour, $emin, $esec) = from_datetime($end);
+            my @sths;
+            
+            my $today_date = to_date($year, $month, $day);
+            my $curhour_time = to_time($hour);
+            my $nexthour_time = to_time($hour, 59, 59);
+            if ($hour == 0) {
+                $sth_events_first_hour->execute($today_date, $today_date, $today_date);
+                $sth_participants_first_hour->execute($today_date, $today_date, $today_date);
+                @sths = ($sth_events_first_hour, $sth_participants_first_hour);
+            } else {
+                $sth_events->execute($today_date, $curhour_time, $nexthour_time);
+                $sth_participants->execute($today_date, $curhour_time, $nexthour_time);
+                @sths = ($sth_events, $sth_participants);
+            }
 
-                    my ($start_row, $end_row) = ($shour, $ehour - ($emin > 0 ? 0 : 1));
-                    if (Compare_YMD($syear, $smonth, $sday, $year, $month, $day) == -1) {
-                        $start_row = 0;
-                    }
-                    if (Compare_YMD($eyear, $emonth, $eday, $year, $month, $day) == 1) {
-                        $end_row = 23;
-                    }
-                    my $rowspan  = $end_row - $start_row + 1;
-                
-                    my $range;
-                    if ( Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) == 0 ) {
-                        $range = sprintf '%d:%02d - %d:%02d', $shour, $smin, $ehour, $emin;
+            foreach my $sth (@sths) {
+                while ( my ( $eid, $name, $start_date, $start_time, $end_date, $end_time, $description, $reminder, $status ) = $sth->fetchrow_array ) {
+                    my ($syear, $smonth, $sday, $shour, $smin, $ssec) = (from_date($start_date), from_time($start_time));
+                    my ($eyear, $emonth, $eday, $ehour, $emin, $esec) = (from_date($end_date), from_time($end_time));
+
+                    my $rowspan;
+                    if (defined $start_time) {
+                        my ($start_row, $end_row) = ($shour, $ehour - ($emin > 0 ? 0 : 1));
+                        if (Compare_YMD($syear, $smonth, $sday, $year, $month, $day) == -1) {
+                            $start_row = 0;
+                        }
+                        if (Compare_YMD($eyear, $emonth, $eday, $year, $month, $day) == 1) {
+                            $end_row = 23;
+                        }
+                        $rowspan  = $end_row - $start_row + 1;
                     } else {
-                        $range = sprintf '%s %d:%02d - %s %d:%02d', Date_to_Text_Long( $syear, $smonth, $sday ), $shour, $smin, Date_to_Text_Long( $eyear, $emonth, $eday ), $ehour, $emin;
+                        $rowspan = 24;
+                    }
+
+                    my $range;
+                    if (defined $start_time) {
+                        if ( Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) == 0 ) {
+                            $range = sprintf '%d:%02d - %d:%02d', $shour, $smin, $ehour, $emin;
+                        } else {
+                            $range = sprintf '%s %d:%02d - %s %d:%02d', Date_to_Text_Long( $syear, $smonth, $sday ), $shour, $smin, Date_to_Text_Long( $eyear, $emonth, $eday ), $ehour, $emin;
+                        }
+                    } elsif ( Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) != 0 ) {
+                        $range = Date_to_Text_Long($syear, $smonth, $sday) . " - " . Date_to_Text_Long($eyear, $emonth, $eday);
                     }
 
                     my $status_text;
@@ -219,10 +369,7 @@ EOF
                     $description = encode_entities($description);
                     $description =~ s/\n/<br>/g;
 
-                    my $bell;
-                    if (defined $reminder) {
-                        $bell = "<img src=\"/chronos/bell.png\"> ";
-                    }
+                    my $bell = defined $reminder ? "<img src=\"/chronos/bell.png\"> " : '';
                     
                     $return .= <<EOF;
         <td class=event rowspan=$rowspan>$bell$range <a class=event href="/Chronos?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a>$status_text<br>$description</td>
@@ -231,16 +378,13 @@ EOF
                 $sth->finish;
             }
 
-            $sth_simul_events->execute( $datetime_max,       $datetime_min, $datetime_min );
-            $sth_simul_participants->execute( $datetime_max, $datetime_min, $datetime_min );
-            my $colspan = $max_simul_events - $sth_simul_events->fetchrow_array - $sth_simul_participants->fetchrow_array;
-            $sth_simul_events->finish;
-            $sth_simul_participants->finish;
-            if ($colspan) {
-                $return .= <<EOF x $colspan;
+            $sth_simul_events->execute($today_date, $today_date, $nexthour_time, $today_date, $today_date, $curhour_time, $curhour_time);
+            $sth_simul_participants->execute($today_date, $today_date, $nexthour_time, $today_date, $today_date, $curhour_time, $curhour_time);
+            $return .= <<EOF x ($max_simul_events - ($sth_simul_events->fetchrow_array + $sth_simul_participants->fetchrow_array));
         <td class=dayview>&nbsp;</td>
 EOF
-            }
+            $sth_simul_events->finish;
+            $sth_simul_participants->finish;
 
             $return .= <<EOF;
     </tr>

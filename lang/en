@@ -1,4 +1,4 @@
-# $Id: en,v 1.4.4.2 2002/07/19 14:50:15 nomis80 Exp $
+# $Id: en,v 1.11 2002/07/29 13:25:08 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -130,16 +130,23 @@ Options:
             username,password,email,access
     --del-user=username
         Delete a user.
+    --show-holidays
+        This command prints out the holiday profiles available on your system.
+        You can afterward include a line in your chronos.conf that looks like
+        this:
+            HOLIDAYS=CA-QC  # Canada/Québec
 EOF
 chronosadmin_exists=The %s user already exists. Delete?
 chronosadmin_created=User %s created
 chronosadmin_deleted=User %s deleted
 chronosadmin_confirm=Confirmation:
 chronosadmin_pass=Password
+chronosadmin_p=MySQL password
 chronosadmin_username=Username (max 16 characters)
 chronosadmin_email=Email address
 chronosadmin_lang=Language
 chronosadmin_realname=Real name
+chronosadmin_connectok=Connected to MySQL database
 remindd_template=<<EOF
 To: %%TO%%
 From: Chronos
@@ -164,3 +171,8 @@ fr=French
 it=Italian
 de=German
 no=Norwegian
+attachments=Attached files:
+new_attachment=New attachment:
+participants_to_add=Add participants:
+remove_part=Remove
+notime=No time

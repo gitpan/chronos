@@ -1,4 +1,4 @@
-# $Id: UserPrefs.pm,v 1.3 2002/07/17 13:18:30 nomis80 Exp $
+# $Id: UserPrefs.pm,v 1.4 2002/07/26 15:20:07 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -115,7 +115,7 @@ EOF
             <table style="border:none; background-color:white">
 EOF
 
-    my $sth_user = $dbh->prepare("SELECT user, name, email FROM user WHERE user != $user_quoted");
+    my $sth_user = $dbh->prepare("SELECT user, name, email FROM user WHERE user != $user_quoted ORDER BY name, user");
     my $sth_acl = $dbh->prepare("SELECT can_read, can_write FROM acl WHERE object= ? AND user = ?");
 
     $sth_user->execute;

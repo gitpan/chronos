@@ -1,4 +1,4 @@
-# $Id: SaveTask.pm,v 1.3 2002/07/16 15:12:13 nomis80 Exp $
+# $Id: SaveTask.pm,v 1.4 2002/07/18 17:33:16 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -58,7 +58,7 @@ sub content {
     }
 
     my ($year, $month, $day) = $chronos->day;
-    $chronos->{r}->header_out("Location", "/Chronos?action=dayview&object=$object&year=$year&month=$month&day=$day");
+    $chronos->{r}->header_out("Location", "/Chronos?action=showday&object=$object&year=$year&month=$month&day=$day");
 }
 
 sub redirect {

@@ -1,4 +1,4 @@
-# $Id: SaveEvent.pm,v 1.9 2002/07/16 15:12:13 nomis80 Exp $
+# $Id: SaveEvent.pm,v 1.19 2002/07/29 16:07:40 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -23,7 +23,7 @@ package Chronos::Action::SaveEvent;
 use strict;
 use Chronos::Action;
 use Date::Calc qw(:all);
-use Chronos::Static qw(Compare_YMDHMS Compare_YMD from_datetime userstring to_datetime to_date);
+use Chronos::Static qw(Compare_YMDHMS Compare_YMD userstring to_datetime to_date to_time);
 use HTML::Entities;
 
 our @ISA = qw(Chronos::Action);
@@ -38,11 +38,14 @@ sub header {
 
 sub content {
     my $self    = shift;
-    my $object = $self->object;
+    my $object  = $self->object;
     my $chronos = $self->{parent};
     my $dbh     = $chronos->dbh;
+    my $text    = $chronos->gettext;
 
     my $eid = $chronos->{r}->param('eid');
+
+    my $redirect;
 
     if ($eid) {
         # Modification d'un événement existant
@@ -51,6 +54,7 @@ sub content {
             if ( $chronos->{r}->param('delete') ) {
                 # Suppression d'événement
                 my $sth_delete_participants = $dbh->prepare("DELETE FROM participants WHERE eid = ?");
+                my $sth_delete_attachments  = $dbh->prepare("DELETE FROM attachments WHERE eid = ?");
                 my $sth_delete_events       = $dbh->prepare("DELETE FROM events WHERE eid = ?");
                 my $rid                     = $dbh->selectrow_array("SELECT rid FROM events WHERE eid = $eid");
                 if ($rid) {
@@ -59,105 +63,159 @@ sub content {
                     while ( my $eid = $sth->fetchrow_array ) {
                         $sth_delete_participants->execute($eid);
                         $sth_delete_events->execute($eid);
+                        $sth_delete_attachments->execute($eid);
                     }
                     $sth->finish;
                     $dbh->do("DELETE FROM recur WHERE rid = $rid");
                 } else {
                     $sth_delete_participants->execute($eid);
                     $sth_delete_events->execute($eid);
+                    $sth_delete_attachments->execute($eid);
                 }
             } else {
-                # Modification de la table events par l'initiateur de l'événement
-                my $name            = $chronos->{r}->param('name');
-                my $start_month     = $chronos->{r}->param('start_month');
-                my $start_day       = $chronos->{r}->param('start_day');
-                my $start_year      = $chronos->{r}->param('start_year');
-                my $start_hour      = $chronos->{r}->param('start_hour');
-                my $start_min       = $chronos->{r}->param('start_min');
-                my $end_month       = $chronos->{r}->param('end_month');
-                my $end_day         = $chronos->{r}->param('end_day');
-                my $end_year        = $chronos->{r}->param('end_year');
-                my $end_hour        = $chronos->{r}->param('end_hour');
-                my $end_min         = $chronos->{r}->param('end_min');
-                my $description     = $chronos->{r}->param('description');
-                my $confirm         = $chronos->{r}->param('confirm');
-                my $reminder_number = $chronos->{r}->param('reminder_number');
-                my $reminder_unit   = $chronos->{r}->param('reminder_unit');
-                my @participants    = $chronos->{r}->param('participants');
-
-                check_date( $start_year, $start_month, $start_day )
-                  or $self->error('startdate');
-                check_time( $start_hour, $start_min, 0 ) or $self->error('starttime');
-                check_date( $end_year, $end_month, $end_day ) or $self->error('enddate');
-                check_time( $end_hour, $end_min, 0 ) or $self->error('endtime');
-
-                if ( Compare_YMDHMS( $start_year, $start_month, $start_day, $start_hour, $start_min, 0, $end_year, $end_month, $end_day, $end_hour, $end_min, 0 ) == 1 )
-                {
-                    $self->error('endbeforestart');
+                my $sth = $dbh->prepare("SELECT user FROM user");
+                $sth->execute;
+                my $removed_participant;
+                while ( my $user = $sth->fetchrow_array ) {
+                    if ( $chronos->{r}->param("remove_$user") ) {
+                        # Suppression d'un participant par l'initiateur de l'événement
+                        $dbh->prepare("DELETE FROM participants WHERE user = ? AND eid = ?")->execute( $user, $eid );
+                        $removed_participant = 1;
+                        $redirect            = 'self';
+                        last;
+                    }
                 }
+                $sth->finish;
 
-                $name or $self->error('missingname');
+                if ( not $removed_participant ) {
+                    # Modification de la table events par l'initiateur de l'événement
+                    my $name        = $chronos->{r}->param('name');
+                    my $notime      = $chronos->{r}->param('notime') ? 1 : 0;
+                    my $start_month = $chronos->{r}->param('start_month');
+                    my $start_day   = $chronos->{r}->param('start_day');
+                    my $start_year  = $chronos->{r}->param('start_year');
+                    my $start_hour  = $notime ? undef : $chronos->{r}->param('start_hour');
+                    my $start_min   = $notime ? undef : $chronos->{r}->param('start_min');
+                    my $end_month       = $chronos->{r}->param('end_month');
+                    my $end_day         = $chronos->{r}->param('end_day');
+                    my $end_year        = $chronos->{r}->param('end_year');
+                    my $end_hour        = $notime ? undef : $chronos->{r}->param('end_hour');
+                    my $end_min         = $notime ? undef : $chronos->{r}->param('end_min');
+                    my $description     = $chronos->{r}->param('description');
+                    my $confirm         = $chronos->{r}->param('confirm');
+                    my $reminder_number = $chronos->{r}->param('reminder_number');
+                    my $reminder_unit   = $chronos->{r}->param('reminder_unit');
+                    my @participants    = $chronos->{r}->param('participants');
+                    $redirect = 'self' if @participants;
 
-                # Tout a l'air beau, on fait l'update
-                if ( my $rid = $dbh->selectrow_array("SELECT rid FROM events WHERE eid = $eid") ) {
-                    $dbh->prepare("UPDATE events SET name = ?, description = ? WHERE rid = ?")->execute( $name, $description, $rid );
+                    $self->error('startdate') unless check_date( $start_year, $start_month, $start_day );
+                    $self->error('starttime') unless $notime or check_time( $start_hour, $start_min, 0 );
+                    $self->error('enddate') unless check_date( $end_year, $end_month, $end_day );
+                    $self->error('endtime') unless $notime or check_time( $end_hour, $end_min, 0 );
 
-                    my $first_eid = $dbh->selectrow_array("SELECT eid FROM events WHERE rid = $rid ORDER BY eid LIMIT 1");
-                    my ( $start, $end ) = $dbh->selectrow_array("SELECT start, end FROM events WHERE eid = $eid");
-                    my ( $Dsyear, $Dsmonth, $Dsday, $Dshour, $Dsmin ) =
-                      Delta_YMDHMS( from_datetime($start), $start_year, $start_month, $start_day, $start_hour, $start_min, 0 );
-                    my ( $Deyear, $Demonth, $Deday, $Dehour, $Demin ) = Delta_YMDHMS( from_datetime($end), $end_year, $end_month, $end_day, $end_hour, $end_min, 0 );
+                    $self->error('endbeforestart')
+                      if Compare_YMDHMS( $start_year, $start_month, $start_day, $start_hour, $start_min, 0, $end_year, $end_month, $end_day, $end_hour, $end_min, 0 ) ==
+                      1;
 
-                    my @delta_reminder = ( 0, 0, 0, 0 );
-                    if ( $reminder_number ne '-' ) {
-                        if ( $reminder_unit eq 'min' ) {
-                            $delta_reminder[2] = -$reminder_number;
-                        } elsif ( $reminder_unit eq 'hour' ) {
-                            $delta_reminder[1] = -$reminder_number;
-                        } else {
-                            $delta_reminder[0] = -$reminder_number;
+                    $name or $self->error('missingname');
+
+                    my $status = $confirm ? 'UNCONFIRMED' : undef;
+
+                    # Tout a l'air beau, on fait l'update
+                    my $sth_participants = $dbh->prepare("INSERT INTO participants (eid, user, status) VALUES(?, ?, ?)");
+                    if ( my $rid = $dbh->selectrow_array("SELECT rid FROM events WHERE eid = $eid") ) {
+                        $dbh->prepare("UPDATE events SET name = ?, description = ? WHERE rid = ?")->execute( $name, $description, $rid );
+
+                        my $first_eid = $dbh->selectrow_array("SELECT eid FROM events WHERE rid = $rid ORDER BY eid LIMIT 1");
+                        my ( $start_date, $start_time, $end_date, $end_time ) =
+                          $dbh->selectrow_array("SELECT start_date, start_time, end_date, end_time FROM events WHERE eid = $eid");
+                        my ( $Dsyear, $Dsmonth, $Dsday, $Dshour, $Dsmin ) =
+                          Delta_YMDHMS( from_date($start_date), from_time($start_time), $start_year, $start_month, $start_day, $start_hour, $start_min, 0 );
+                        my ( $Deyear, $Demonth, $Deday, $Dehour, $Demin ) =
+                          Delta_YMDHMS( from_date($end_date), from_time($end_time), $end_year, $end_month, $end_day, $end_hour, $end_min, 0 );
+
+                        my @delta_reminder = ( 0, 0, 0, 0 );
+                        if ( $reminder_number ne '-' ) {
+                            if ( $reminder_unit eq 'min' ) {
+                                $delta_reminder[2] = -$reminder_number;
+                            } elsif ( $reminder_unit eq 'hour' ) {
+                                $delta_reminder[1] = -$reminder_number;
+                            } else {
+                                $delta_reminder[0] = -$reminder_number;
+                            }
+                        }
+
+                        my $sth_update = $dbh->prepare("UPDATE events SET start_date = ?, start_time = ?, end_date = ?, end_time = ?, reminder = ? WHERE eid = ?");
+                        my $sth_eid    = $dbh->prepare("SELECT eid, start_date, start_time, end_date, end_time FROM events WHERE rid = $rid");
+                        $sth_eid->execute;
+                        while ( my ( $eid, $start_date, $start_time, $end_date, $end_time ) = $sth_eid->fetchrow_array ) {
+                            my ( $syear, $smonth, $sday, $shour, $smin ) =
+                              Add_Delta_YMDHMS( from_date($start_date), from_time($start_time), $Dsyear, $Dsmonth, $Dsday, $Dshour, $Dsmin, 0 );
+                            my ( $eyear, $emonth, $eday, $ehour, $emin ) =
+                              Add_Delta_YMDHMS( from_date( $end_date, from_time($end_time) ), $Deyear, $Demonth, $Deday, $Dehour, $Demin, 0 );
+                            my $reminder =
+                              $reminder_number eq '-'
+                              ? undef
+                              : to_datetime( Add_Delta_DHMS( $syear, $smonth, $sday, $shour, $smin, 0, @delta_reminder ) );
+                            $sth_update->execute(
+                                to_date( $syear, $smonth, $sday ),
+                                ($notime ? undef : to_time( $shour, $smin, 0 )),
+                                to_date( $eyear, $emonth, $eday ),
+                                ($notime ? undef : to_time( $ehour, $emin, 0 )),
+                                $reminder, $eid
+                            );
+                            foreach (@participants) {
+                                $sth_participants->execute( $eid, $_, $status );
+                            }
+                        }
+                        $sth_eid->finish;
+                    } else {
+                        my $start_date = to_date( $start_year, $start_month, $start_day );
+                        my $start_time = $notime ? undef : to_time( $start_hour, $start_min );
+                        my $end_date   = to_date( $end_year,   $end_month,   $end_day );
+                        my $end_time   = $notime ? undef : to_time( $end_hour,   $end_min );
+
+                        my $reminder;
+                        if ( $reminder_number ne '-' ) {
+                            my ( $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min, $Dd, $Dh, $Dm, );
+                            if ( $reminder_unit eq 'min' ) {
+                                $Dm = -$reminder_number;
+                            } elsif ( $reminder_unit eq 'hour' ) {
+                                $Dh = -$reminder_number;
+                            } else {
+                                $Dd = -$reminder_number;
+                            }
+                            ( $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min ) =
+                              Add_Delta_DHMS( $start_year, $start_month, $start_day, $start_hour, $start_min, 0, $Dd, $Dh, $Dm, 0 );
+                            $reminder = sprintf '%04d-%02d-%02d %02d:%02d:00', $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min;
+                        }
+
+                        $dbh->prepare(
+                            "UPDATE events SET name = ?, start_date = ?, start_time = ?, end_date = ?, end_time = ?, description = ?, reminder = ? WHERE eid = $eid")
+                          ->execute( $name, $start_date, $start_time, $end_date, $end_time, $description, $reminder );
+                        foreach (@participants) {
+                            $sth_participants->execute( $eid, $_, $status );
                         }
                     }
 
-                    my $sth_update = $dbh->prepare("UPDATE events SET start = ?, end = ?, reminder = ? WHERE eid = ?");
-                    my $sth_eid    = $dbh->prepare("SELECT eid, start, end FROM events WHERE rid = $rid");
-                    $sth_eid->execute;
-                    while ( my ( $eid, $start, $end ) = $sth_eid->fetchrow_array ) {
-                        my ( $syear, $smonth, $sday, $shour, $smin ) = Add_Delta_YMDHMS( from_datetime($start), $Dsyear, $Dsmonth, $Dsday, $Dshour, $Dsmin, 0 );
-                        my ( $eyear, $emonth, $eday, $ehour, $emin ) = Add_Delta_YMDHMS( from_datetime($end),   $Deyear, $Demonth, $Deday, $Dehour, $Demin, 0 );
-                        my $reminder = $reminder_number eq '-' ? undef: to_datetime( Add_Delta_DHMS( $syear, $smonth, $sday, $shour, $smin, 0, @delta_reminder ) );
-                        $sth_update->execute(
-                            to_datetime( $syear, $smonth, $sday, $shour, $smin, 0 ),
-                            to_datetime( $eyear, $emonth, $eday, $ehour, $emin, 0 ),
-                            $reminder, $eid
-                        );
+                    if ($confirm) {
+                        $self->send_mails( $start_year, $start_month, $start_day, $start_hour, $start_min, $name, $description, @participants );
                     }
-                    $sth_eid->finish;
-                } else {
-                    my $start = sprintf '%04d-%02d-%02d %02d:%02d:00', $start_year, $start_month, $start_day, $start_hour, $start_min;
-                    my $end   = sprintf '%04d-%02d-%02d %02d:%02d:00', $end_year,   $end_month,   $end_day,   $end_hour,   $end_min;
 
-                    my $reminder;
-                    if ( $reminder_number ne '-' ) {
-                        my ( $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min, $Dd, $Dh, $Dm, );
-                        if ( $reminder_unit eq 'min' ) {
-                            $Dm = -$reminder_number;
-                        } elsif ( $reminder_unit eq 'hour' ) {
-                            $Dh = -$reminder_number;
-                        } else {
-                            $Dd = -$reminder_number;
+                    if ( $chronos->{r}->param('new_attachment') ) {
+                        my $upload   = $chronos->{r}->upload('new_attachment');
+                        my $filename = $upload->filename;
+                        $filename =~ s/.*\///;
+                        $filename =~ s/.*\\//;
+                        my $size = $upload->size;
+                        my $file;
+                        {
+                            local $/;
+                            $file = readline $upload->fh;
                         }
-                        ( $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min ) =
-                          Add_Delta_DHMS( $start_year, $start_month, $start_day, $start_hour, $start_min, 0, $Dd, $Dh, $Dm, 0 );
-                        $reminder = sprintf '%04d-%02d-%02d %02d:%02d:00', $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min;
+                        $dbh->prepare("INSERT INTO attachments (filename, size, file, eid) VALUES(?, ?, ?, ?)")->execute( $filename, $size, $file, $eid );
                     }
-
-                    $dbh->prepare("UPDATE events SET name = ?, start = ?, end = ?, description = ?, reminder = ? WHERE eid = $eid")
-                      ->execute( $name, $start, $end, $description, $reminder );
                 }
-
-                my ( $year, $month, $day ) = $chronos->day;
-                $chronos->{r}->header_out( "Location", "/Chronos?action=dayview&object=$object&year=$year&month=$month&day=$day" );
             }
         } elsif ( $chronos->{r}->param('confirm') ) {
             # Confirmation de la part d'un participant
@@ -186,7 +244,7 @@ sub content {
                 $sth->execute( $eid, $self->object );
             }
         } else {
-            # Changement du reminder par un participant
+            # Changement du reminder ou d'un attachment par un participant
             my $reminder_number = $chronos->{r}->param('reminder_number');
             my $reminder_unit   = $chronos->{r}->param('reminder_unit');
 
@@ -202,15 +260,16 @@ sub content {
 
                 my $sth_update = $dbh->prepare("UPDATE participants SET reminder = ? WHERE eid = ? AND user = ?");
 
-                my $sth_eid = $dbh->prepare("SELECT eid, start FROM events WHERE rid = $rid");
+                my $sth_eid = $dbh->prepare("SELECT eid, start_date, start_time FROM events WHERE rid = $rid");
                 $sth_eid->execute;
-                while ( my ( $eid, $start ) = $sth_eid->fetchrow_array ) {
-                    my $reminder = $reminder_number eq '-' ? undef : to_datetime( Add_Delta_DHMS( from_datetime($start), @reminder_delta ) );
+                while ( my ( $eid, $start_date, $start_time ) = $sth_eid->fetchrow_array ) {
+                    my $reminder = $reminder_number eq '-' ? undef: to_datetime( Add_Delta_DHMS( from_date($start_date), from_time($start_time), @reminder_delta ) );
                     $sth_update->execute( $reminder, $eid, $self->object );
                 }
                 $sth_eid->finish;
             } else {
-                my ( $syear, $smonth, $sday, $shour, $smin ) = from_datetime( $dbh->selectrow_array("SELECT start FROM events WHERE eid = $eid") );
+                my ( $start_date, $start_time ) = $dbh->selectrow_array("SELECT start_date, start_time FROM events WHERE eid = $eid");
+                my ( $syear, $smonth, $sday, $shour, $smin ) = from_date($start_date), from_time($start_time);
                 my $reminder;
                 if ( $reminder_number ne '-' ) {
                     my ( $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min, $Dd, $Dh, $Dm, );
@@ -227,20 +286,35 @@ sub content {
                 }
                 $dbh->prepare("UPDATE participants SET reminder = ? WHERE eid = ? AND user = ?")->execute( $reminder, $eid, $self->object );
             }
+
+            if ( $chronos->{r}->param('new_attachment') ) {
+                my $upload   = $chronos->{r}->upload('new_attachment');
+                my $filename = $upload->filename;
+                $filename =~ s/.*\///;
+                $filename =~ s/.*\\//;
+                my $size = $upload->size;
+                my $file;
+                {
+                    local $/;
+                    $file = readline $upload->fh;
+                }
+                $dbh->prepare("INSERT INTO attachments (filename, size, file, eid) VALUES(?, ?, ?, ?)")->execute( $filename, $size, $file, $eid );
+            }
         }
     } else {
         # Création d'événement
-        my $name            = $chronos->{r}->param('name');
-        my $start_month     = $chronos->{r}->param('start_month');
-        my $start_day       = $chronos->{r}->param('start_day');
-        my $start_year      = $chronos->{r}->param('start_year');
-        my $start_hour      = $chronos->{r}->param('start_hour');
-        my $start_min       = $chronos->{r}->param('start_min');
+        my $name        = $chronos->{r}->param('name');
+        my $notime      = $chronos->{r}->param('notime') ? 1 : 0;
+        my $start_month = $chronos->{r}->param('start_month');
+        my $start_day   = $chronos->{r}->param('start_day');
+        my $start_year  = $chronos->{r}->param('start_year');
+        my $start_hour = $notime ? undef: $chronos->{r}->param('start_hour');
+        my $start_min  = $notime ? undef: $chronos->{r}->param('start_min');
         my $end_month       = $chronos->{r}->param('end_month');
         my $end_day         = $chronos->{r}->param('end_day');
         my $end_year        = $chronos->{r}->param('end_year');
-        my $end_hour        = $chronos->{r}->param('end_hour');
-        my $end_min         = $chronos->{r}->param('end_min');
+        my $end_hour        = $notime ? undef: $chronos->{r}->param('end_hour');
+        my $end_min         = $notime ? undef: $chronos->{r}->param('end_min');
         my $description     = $chronos->{r}->param('description');
         my $recur           = $chronos->{r}->param('recur');
         my $recur_end_month = $chronos->{r}->param('recur_end_month');
@@ -251,27 +325,21 @@ sub content {
         my $reminder_unit   = $chronos->{r}->param('reminder_unit');
         my @participants    = $chronos->{r}->param('participants');
 
-        check_date( $start_year, $start_month, $start_day )
-          or $self->error('startdate');
-        check_time( $start_hour, $start_min, 0 ) or $self->error('starttime');
-        check_date( $end_year, $end_month, $end_day ) or $self->error('enddate');
-        check_time( $end_hour, $end_min, 0 ) or $self->error('endtime');
-        check_date( $recur_end_year, $recur_end_month, $recur_end_day )
-          or $self->error('recurenddate');
+        $self->error('startdate') unless check_date( $start_year, $start_month, $start_day );
+        $self->error('starttime') unless $notime or check_time( $start_hour, $start_min, 0 );
+        $self->error('enddate') unless check_date( $end_year, $end_month, $end_day );
+        $self->error('endtime') unless $notime or check_time( $end_hour, $end_min, 0 );
+        $self->error('recurenddate') unless check_date( $recur_end_year, $recur_end_month, $recur_end_day );
 
-        if ( Compare_YMDHMS( $start_year, $start_month, $start_day, $start_hour, $start_min, 0, $end_year, $end_month, $end_day, $end_hour, $end_min, 0 ) == 1 ) {
-            $self->error('endbeforestart');
-        }
-
-        if ( $recur ne 'NULL' and Compare_YMD( $start_year, $start_month, $start_day, $recur_end_year, $recur_end_month, $recur_end_day ) == 1 ) {
-            $self->error('recurendbeforestart');
-        }
-
-        if ( $recur ne 'NULL' and Compare_YMD( $end_year, $end_month, $end_day, $recur_end_year, $recur_end_month, $recur_end_day, ) == 1 ) {
-            $self->error('recurendbeforeend');
-        }
-
-        $name or $self->error('missingname');
+        $self->error('endbeforestart')
+          if Compare_YMDHMS( $start_year, $start_month, $start_day, $start_hour, $start_min, 0, $end_year, $end_month, $end_day, $end_hour, $end_min, 0 ) == 1;
+        $self->error('recurendbeforestart')
+          if $recur ne 'NULL'
+          and Compare_YMD( $start_year, $start_month, $start_day, $recur_end_year, $recur_end_month, $recur_end_day ) == 1;
+        $self->error('recurendbeforeend')
+          if $recur ne 'NULL'
+          and Compare_YMD( $end_year, $end_month, $end_day, $recur_end_year, $recur_end_month, $recur_end_day, ) == 1;
+        $self->error('missingname') unless $name;
 
         # Tout a l'air beau, on fait le insert.
         if ( $recur ne 'NULL' ) {
@@ -282,14 +350,18 @@ sub content {
             $dbh->prepare("INSERT INTO recur (every, last) VALUES(?, ?)")->execute( $recur, $recur_end );
             my $rid = $dbh->selectrow_array("SELECT LAST_INSERT_ID()");
 
-            my $sth              = $dbh->prepare("INSERT INTO events (initiator, name, start, end, description, rid, reminder) VALUES(?, ?, ?, ?, ?, ?, ?)");
+            my $sth =
+              $dbh->prepare(
+                "INSERT INTO events (initiator, name, start_date, start_time, end_date, end_time, description, rid, reminder) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)");
             my $sth_participants = $dbh->prepare("INSERT INTO participants (eid, user, status) VALUES(?, ?, ?)");
 
-            my $status = $confirm ? 'UNCONFIRMED' : 'CONFIRMED';
+            my $status = $confirm ? 'UNCONFIRMED' : undef;
 
             while ( Compare_YMD( $syear, $smonth, $sday, $recur_end_year, $recur_end_month, $recur_end_day ) != 1 ) {
-                my $start = to_datetime( $syear, $smonth, $sday, $shour, $smin, 0 );
-                my $end   = to_datetime( $eyear, $emonth, $eday, $ehour, $emin, 0 );
+                my $start_date = to_date( $syear, $smonth, $sday );
+                my $start_time = $notime ? undef : to_time( $shour, $smin,   0 );
+                my $end_date   = to_date( $eyear, $emonth, $eday );
+                my $end_time   = $notime ? undef : to_time( $ehour, $emin,   0 );
 
                 my $reminder;
                 if ( $reminder_number ne '-' ) {
@@ -306,7 +378,7 @@ sub content {
                     $reminder = sprintf '%04d-%02d-%02d %02d:%02d:00', $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min;
                 }
 
-                $sth->execute( $self->object, $name, $start, $end, $description, $rid, $reminder );
+                $sth->execute( $self->object, $name, $start_date, $start_time, $end_date, $end_time, $description, $rid, $reminder );
                 my $eid = $dbh->selectrow_array("SELECT LAST_INSERT_ID()");
                 foreach (@participants) {
                     $sth_participants->execute( $eid, $_, $status );
@@ -328,10 +400,11 @@ sub content {
                     last;
                 }
             }
-        } else {
-            my $start = sprintf '%04d-%02d-%02d %02d:%02d:00', $start_year, $start_month, $start_day, $start_hour, $start_min;
-            my $end   = sprintf '%04d-%02d-%02d %02d:%02d:00', $end_year,   $end_month,   $end_day,   $end_hour,   $end_min;
-            my $recur_end = sprintf '%04d-%02d-%02d', $recur_end_year, $recur_end_month, $recur_end_day;
+        } else {    # $recur eq 'NULL'
+            my $start_date = to_date( $start_year, $start_month, $start_day );
+            my $start_time = $notime ? undef : to_time( $start_hour, $start_min );
+            my $end_date   = to_date( $end_year,   $end_month,   $end_day );
+            my $end_time   = $notime ? undef : to_time( $end_hour,   $end_min );
 
             my $reminder;
             if ( $reminder_number ne '-' ) {
@@ -345,14 +418,15 @@ sub content {
                 }
                 ( $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min ) =
                   Add_Delta_DHMS( $start_year, $start_month, $start_day, $start_hour, $start_min, 0, $Dd, $Dh, $Dm, 0 );
-                $reminder = sprintf '%04d-%02d-%02d %02d:%02d:00', $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min;
+                $reminder = to_datetime( $remind_year, $remind_month, $remind_day, $remind_hour, $remind_min );
             }
 
-            my $sth = $dbh->prepare("INSERT INTO events (initiator, name, start, end, description, reminder) VALUES(?, ?, ?, ?, ?, ?)");
-            $sth->execute( $self->object, $name, $start, $end, $description, $reminder );
+            my $sth =
+              $dbh->prepare("INSERT INTO events (initiator, name, start_date, start_time, end_date, end_time, description, reminder) VALUES(?, ?, ?, ?, ?, ?, ?, ?)");
+            $sth->execute( $self->object, $name, $start_date, $start_time, $end_date, $end_time, $description, $reminder );
 
             my $eid = $dbh->selectrow_array("SELECT LAST_INSERT_ID()");
-            my $status = $confirm ? 'UNCONFIRMED' : 'CONFIRMED';
+            my $status = $confirm ? 'UNCONFIRMED' : undef;
             $sth = $dbh->prepare("INSERT INTO participants (eid, user, status) VALUES($eid, ?, '$status')");
             foreach (@participants) {
                 $sth->execute($_);
@@ -360,35 +434,16 @@ sub content {
         }
 
         if ($confirm) {
-            my $text = $chronos->gettext;
-            foreach (@participants) {
-                my $email_addy = $dbh->selectrow_array("SELECT email FROM user WHERE user = @{[$dbh->quote($_)]}");
-                my $mail_body  = $text->{confirm_body};
-                my ( $ini_name, $ini_email ) = $dbh->selectrow_array("SELECT name, email FROM user WHERE user = @{[$dbh->quote($self->object)]}");
-                my $userstring = decode_entities( userstring( $self->object, $ini_name, $ini_email ) );
-                $userstring =~ s/<a.*?>(.*?)<\/a>/$1/;
-                $mail_body  =~ s/\%\%INITIATOR\%\%/$userstring/;
-                $mail_body  =~ s/\%\%DATE\%\%/sprintf '%s %d:%02d', Date_to_Text_Long($start_year, $start_month, $start_day), $start_hour, $start_min/e;
-                $mail_body  =~ s/\%\%NAME\%\%/$name/;
-                $mail_body  =~ s/\%\%DESCRIPTION\%\%/$description/;
-                $mail_body  =~ s/\%\%VERSION\%\%/$chronos->VERSION/e;
-                my $subject = decode_entities( $text->{confirm_subject} );
-                $mail_body = decode_entities($mail_body);
-                open MAIL, "| /usr/sbin/sendmail -oi -t";
-                print MAIL <<EOF;
-To: $email_addy
-From: Chronos
-Subject: $subject
-
-$mail_body
-EOF
-                close MAIL;
-            }
+            $self->send_mails( $start_year, $start_month, $start_day, $start_hour, $start_min, $name, $description, @participants );
         }
     }
 
     my ( $year, $month, $day ) = $chronos->day;
-    $chronos->{r}->header_out( "Location", "/Chronos?action=dayview&object=$object&year=$year&month=$month&day=$day" );
+    if ( $chronos->{r}->param('new_attachment') or $redirect eq 'self' ) {
+        $chronos->{r}->header_out( "Location", "/Chronos?action=editevent&eid=$eid&object=$object&year=$year&month=$month&day=$day" );
+    } else {
+        $chronos->{r}->header_out( "Location", "/Chronos?action=showday&object=$object&year=$year&month=$month&day=$day" );
+    }
 }
 
 sub error {
@@ -405,6 +460,42 @@ sub error {
 
 sub redirect {
     return 1;
+}
+
+sub send_mails {
+    my ( $self, $start_year, $start_month, $start_day, $start_hour, $start_min, $name, $description, @participants ) = @_;
+    my $chronos = $self->{parent};
+    my $text    = $chronos->gettext;
+    my $dbh     = $chronos->dbh;
+    my $sendmail = $chronos->conf->{SENDMAIL} || "/usr/sbin/sendmail";
+    my ( $ini_name, $ini_email ) = $dbh->selectrow_array("SELECT name, email FROM user WHERE user = @{[$dbh->quote($self->object)]}");
+    my $sth = $dbh->prepare("SELECT email FROM user WHERE user = ?");
+    foreach (@participants) {
+        $sth->execute($_);
+        my $email_addy = $sth->fetchrow_array;
+        $sth->finish;
+        my $mail_body = $text->{confirm_body};
+        my $userstring = decode_entities( userstring( $self->object, $ini_name, $ini_email ) );
+        $userstring =~ s/<a.*?>(.*?)<\/a>/$1/;
+        $mail_body  =~ s/\%\%INITIATOR\%\%/$userstring/;
+        my $date = Date_to_Text_Long( $start_year, $start_month, $start_day ) . ( defined $start_hour ? sprintf( '%2d:%02d', $start_hour, $start_min ) : '' );
+        $mail_body =~ s/\%\%DATE\%\%/$date/;
+        $mail_body =~ s/\%\%NAME\%\%/$name/;
+        $mail_body =~ s/\%\%DESCRIPTION\%\%/$description/;
+        $mail_body =~ s/\%\%VERSION\%\%/$chronos->VERSION/e;
+        my $subject = decode_entities( $text->{confirm_subject} );
+        $mail_body = decode_entities($mail_body);
+        delete $ENV{PATH};
+        open MAIL, "| $sendmail -oi -t";
+        print MAIL <<EOF;
+To: $email_addy
+From: Chronos
+Subject: $subject
+
+$mail_body
+EOF
+        close MAIL;
+    }
 }
 
 1;

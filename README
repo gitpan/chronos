@@ -10,14 +10,14 @@ WHY WRITE YET ANOTHER WEB AGENDA?
 =================================
 
 All others are one of these:
-	- Proprietary
-	- Ugly
-	- Broken/buggy
+    - Proprietary
+    - Ugly
+    - Broken/buggy
 
 Chronos is not
-	- Proprietary
-	- Ugly
-	- Broken/buggy
+    - Proprietary
+    - Ugly
+    - Broken/buggy
 
 Chronos is released under the GPL (see the file COPYING to understand what it
 means to release a software under the GPL). Linux Québec Technologies is the
@@ -28,15 +28,15 @@ possible to HTML 4.01.
 
 The following browsers are compatible with HTML 4.01 and
 CSS2 and therefore can be used to view Chronos as it was intended to be viewed:
-	- Mozilla 1.0+
-	- Internet Explorer 5.5+
+    - Mozilla 1.0+
+    - Internet Explorer 5.5+
 The following browsers can display Chronos relatively correctly, though some
 features will look uglier:
-	- Konqueror 3.0
-	- Internet Explorer 5.0
-	- Opera 6.0
+    - Konqueror 3.0
+    - Internet Explorer 5.0
+    - Opera 6.0
 These browsers are too old/dumb and therefore Chronos looks ugly on them:
-	- Netscape 4.x
+    - Netscape 4.x
 Other browsers have not been tested. Send email to chronos@linuxquebec.com if
 you want one of them to be included in this list. Note that all browsers should
 be able to at least display Chronos as we try to be standards-compliant.
@@ -52,18 +52,23 @@ be squashed within a day.
 THIS RELEASE
 ============
 
+1.1.0 brings major feature enhancements: file attachments, participant
+management, events with no time associated, more intuitive status management and
+locale-dependant holidays. Minor documentation, installation and look issues
+have also been fixed.
+
+OLDER RELEASES
+==============
+
 1.0.4 features two new translations: German by Peer Oliver Schmidt and Norwegian
 by Tarjei Knapstad. Minor installation bugs have been squashed.
 
 Chronos is currently available in the following languages:
-	- English
-	- French
-	- Italian (incomplete)
-	- German
-	- Norwegian
-
-OLDER RELEASES
-==============
+    - English
+    - French
+    - Italian (incomplete)
+    - German
+    - Norwegian
 
 1.0.3 introduces the Italian translation by Enzo Bontempo, fixes some language
 issues and minor display glitches. This could be the last 1.0.x release, unless
@@ -90,19 +95,15 @@ FUTURE RELEASES
 *                                                                               *
 *********************************************************************************
 
-1.1.0 will have the following features (among others, surely):
-    - Ability to add file attachments to an event
-	- Ability to remove/add participants to an event
-	- Ability to have no time associated with an event (only a date)
-	- Ability to have no duration associated with an event (only a start moment)
-	- The two last features will be useable in combination
-	- When the checkbox "ask for confirmation" is not checked, all status info
-	  will not be shown for participants.
-	- Holidays
+1.2.0 will have the following features:
+    - Week starting on Sunday and 5-day work week
+    - Palm Pilot integration
 
 Future plans/dreams:
-	- Ability to choose from different stylesheets (themeability!)
-	- Many different languages to choose from
+    - Ability to choose from different stylesheets (themeability!)
+    - SMS reminders
+    - Send reminder to address ____________
+    - WinPopup/ICQ/AIM/MSN (maybe)/Yahoo/Jabber reminders
 
 CONTACT
 =======

@@ -1,5 +1,5 @@
 #!/usr/bin/perl 
-# $Id: chronosadmin,v 1.7.2.1 2002/07/19 14:50:15 nomis80 Exp $
+# $Id: chronosadmin,v 1.11 2002/07/29 13:25:08 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -36,18 +36,20 @@ GetOptions(
     'new-users-batch:s' => \$new_users_batch,
     'autodel!'          => \$autodel,
     'del-user=s'        => \$deluser,
+    'show-holidays'     => \&holidays,
   )
   or usage();
 $db = shift || 'chronos';
 
 db_pass($db_pass) if defined $db_pass;
 my $dbh = dbh();
+print "$text->{chronosadmin_connectok}\n";
 new_user() if $new_user;
 new_users_batch($new_users_batch) if $new_users_batch;
 del_user($deluser)                if $deluser;
 
 sub db_pass {
-    $db_pass = shift || get($text->{chronosadmin_pass}, { Password => 1 } );
+    $db_pass = shift || get($text->{chronosadmin_p}, { Password => 1, NoConfirm => 1 } );
 }
 
 sub usage {
@@ -154,6 +156,13 @@ sub new_users_batch {
         chomp;
         newuser( split /,/ );
     }
+}
+
+sub holidays {
+    # Don't always load the module, it is rarely used. Saves startup time.
+    eval "use Date::Calendar::Profiles";
+    print join("\n", sort keys %$Date::Calendar::Profiles::Profiles);
+    exit 0;
 }
 
 # vim: set et ts=4 sw=4 ft=perl:

@@ -1,5 +1,5 @@
 #!/usr/bin/perl 
-# $Id: chronos_install_db,v 1.12.2.1 2002/07/19 14:50:15 nomis80 Exp $
+# $Id: chronos_install_db,v 1.16 2002/07/28 21:03:44 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -85,8 +85,10 @@ CREATE TABLE events (
     eid INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     initiator CHAR(16) BINARY,
     name TINYTEXT NOT NULL,
-    start DATETIME NOT NULL,
-    end DATETIME NOT NULL,
+    start_date DATE NOT NULL,
+    start_time TIME,
+    end_date DATE NOT NULL,
+    end_time TIME,
     description TEXT,
     rid INT UNSIGNED,
     reminder DATETIME,
@@ -101,7 +103,7 @@ $dbh->do(<<EOF);
 CREATE TABLE participants (
     eid INT UNSIGNED NOT NULL,
     user CHAR(16) BINARY NOT NULL,
-    status ENUM('UNCONFIRMED','CONFIRMED','CANCELED') NOT NULL,
+    status ENUM('UNCONFIRMED','CONFIRMED','CANCELED'),
     reminder DATETIME,
     reminder_sent ENUM('N','Y') NOT NULL,
     PRIMARY KEY (eid, user)
@@ -129,6 +131,19 @@ CREATE TABLE tasks (
 )
 EOF
 printf "$lang->{create_db_tablecreated}\n", 'tasks';
+
+$dbh->do(<<EOF);
+CREATE TABLE attachments (
+    aid INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    eid INT UNSIGNED,
+    filename VARCHAR(255),
+    notes TEXT,
+    file LONGBLOB,
+    size INT UNSIGNED,
+    INDEX (eid)
+)
+EOF
+printf "$lang->{create_db_tablecreated}\n", 'attachments';
 
 print "$lang->{create_db_user} ";
 chomp(my $db_user = <STDIN>);

@@ -1,4 +1,4 @@
-# $Id: EditTask.pm,v 1.5 2002/07/16 15:12:13 nomis80 Exp $
+# $Id: EditTask.pm,v 1.6 2002/07/29 16:07:40 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -36,7 +36,7 @@ sub header {
     my ($year, $month, $day) = $self->{parent}->day;
     my $text = $self->{parent}->gettext;
     return <<EOF;
-<table style="border:hidden; margin-style:none" cellspacing=0 cellpadding=0 width="100%">
+<table style="margin-style:none" cellspacing=0 cellpadding=0 width="100%">
     <tr>
         <td class=header>@{[Date_to_Text_Long(Today())]}</td>
         <td class=header align=right>
@@ -58,7 +58,7 @@ sub content {
     my $form = $self->form($year, $month, $day);
 
     return <<EOF;
-<table width="100%" style="border:hidden">
+<table width="100%" style="border:none">
     <tr>
         <td valign=top>$minimonth</td>
         <td width="100%" valign=top>$form</td>

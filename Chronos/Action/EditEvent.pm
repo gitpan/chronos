@@ -1,4 +1,4 @@
-# $Id: EditEvent.pm,v 1.8 2002/07/16 15:12:13 nomis80 Exp $
+# $Id: EditEvent.pm,v 1.17 2002/07/29 16:07:40 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -23,7 +23,7 @@ package Chronos::Action::EditEvent;
 use strict;
 use Chronos::Action;
 use Date::Calc qw(:all);
-use Chronos::Static qw(from_datetime from_date userstring);
+use Chronos::Static qw(from_datetime from_date from_time userstring);
 use HTML::Entities;
 
 our @ISA = qw(Chronos::Action);
@@ -58,7 +58,7 @@ sub header {
     my ($year, $month, $day) = $self->{parent}->day;
     my $text = $self->{parent}->gettext;
     return <<EOF;
-<table style="border:hidden; margin-style:none" cellspacing=0 cellpadding=0 width="100%">
+<table style="margin-style:none" cellspacing=0 cellpadding=0 width="100%">
     <tr>
         <td class=header>@{[Date_to_Text_Long(Today())]}</td>
         <td class=header align=right>
@@ -80,7 +80,7 @@ sub content {
     my $form = $self->form( $year, $month, $day, $hour );
 
     return <<EOF;
-<table width="100%" style="border:hidden">
+<table width="100%" style="border:none">
     <tr>
         <td valign=top>$minimonth</td>
         <td width="100%">$form</td>
@@ -102,17 +102,18 @@ sub form {
     if ($eid) {
         %event = %{ $dbh->selectrow_hashref("SELECT * FROM events WHERE eid = $eid") };
     }
-    @event{qw(syear smonth sday shour smin ssec)} = from_datetime( $event{start} );
-    @event{qw(eyear emonth eday ehour emin esec)} = from_datetime( $event{end} );
+    @event{qw(syear smonth sday shour smin ssec)} = (from_date( $event{start_date} ), from_time( $event{start_time} ));
+    @event{qw(eyear emonth eday ehour emin esec)} = (from_date( $event{end_date} ), from_time( $event{end_time} ));
     if ( $event{rid} ) {
         @event{qw(recurrent recur_until)} = $dbh->selectrow_array("SELECT every, last FROM recur WHERE rid = $event{rid}");
         @event{qw(ryear rmonth rday)}     = from_date( $event{recur_until} );
     }
+    my $notime = ($eid and not defined $event{start_time}) ? 1 : 0;
 
     if ( $eid and $event{initiator} ne $self->object ) {
         # Modification d'un événement existant par un participant
-        my $stext = encode_entities( sprintf '%s %d:%02d', Date_to_Text_Long( @event{qw(syear smonth sday)} ), @event{qw(shour smin)} );
-        my $etext = encode_entities( sprintf '%s %d:%02d', Date_to_Text_Long( @event{qw(eyear emonth eday)} ), @event{qw(ehour emin)} );
+        my $stext = encode_entities( Date_to_Text_Long( @event{qw(syear smonth sday)} ) . ($notime ? '' : sprintf(' %d:%02d', @event{qw(shour smin)})) );
+        my $etext = encode_entities( Date_to_Text_Long( @event{qw(eyear emonth eday)} ) . ($notime ? '' : sprintf(' %d:%02d', @event{qw(ehour emin)})) );
         my $recur = $event{recurrent} ? $text->{ "eventrecur" . lc $event{recurrent} } : $text->{eventnotrecur};
         my $rtext = $event{recur_until} ? encode_entities( Date_to_Text_Long( @event{qw(ryear rmonth rday)} ) ) : '-';
 
@@ -125,8 +126,8 @@ sub form {
 
         while ( my ( $user, $name, $email, $status ) = $sth->fetchrow_array ) {
             my $userstring = userstring( $user, $name, $email );
-            my $statusstring = $text->{"status_$status"};
-            $participants .= "<br>$userstring <b>($statusstring)</b>";
+            my $statusstring = defined $status ? "<b>(" . $text->{"status_$status"} . ")</b>" : '';
+            $participants .= "<br>$userstring $statusstring";
             if ( $user eq $self->object ) {
                 if ( $status ne 'CANCELED' ) {
                     $participants .= " <input type=submit name=cancel value=\"$text->{cancel}\">";
@@ -139,7 +140,7 @@ sub form {
         $sth->finish;
 
         my $return = <<EOF;
-<form method=POST action="/Chronos">
+<form method=POST action="/Chronos" enctype="multipart/form-data" name="form1">
 <input type=hidden name=action value=saveevent>
 <input type=hidden name=object value="$object">
 <input type=hidden name=year value=$year>
@@ -188,7 +189,7 @@ EOF
             $reminder_datetime = $dbh->selectrow_array("SELECT reminder FROM participants WHERE eid = $eid");
         }
         if ( defined $reminder_datetime ) {
-            my ( $Dd, $Dh, $Dm ) = Delta_DHMS( from_datetime($reminder_datetime), from_datetime( $event{start} ) );
+            my ( $Dd, $Dh, $Dm ) = Delta_DHMS( from_datetime($reminder_datetime), from_date( $event{start_date} ), from_time( $event{start_time} ) );
             if ($Dd and not $Dh) {
                 $selunit{day} = 'selected';
                 $selnumber{$Dd} = 'selected';
@@ -217,6 +218,43 @@ EOF
         $return .= <<EOF;
         <td>$remind_me</td>
     </tr>
+EOF
+        $return .= <<EOF;
+    <tr>
+        <td class=eventlabel>$text->{attachments}</td>
+        <td>
+EOF
+        if ($dbh->selectrow_array("SELECT COUNT(*) FROM attachments WHERE eid = $eid")) {
+            $return .= <<EOF;
+            <table class=attachments>
+EOF
+            my $sth_files = $dbh->prepare("SELECT aid, filename, size FROM attachments WHERE eid = $eid ORDER BY filename");
+            $sth_files->execute;
+            while (my ($aid, $filename, $size) = $sth_files->fetchrow_array) {
+                $filename = encode_entities($filename);
+                $size = format_size($size);
+                $return .= <<EOF;
+                <tr>
+                    <td class=attachment>
+                        <a href="/Chronos/getfile/$aid/$filename" class=attachment>$filename</a>
+                    </td>
+                    <td class=attachment>$size</td>
+                    <td valign=top>
+                        <a href="/Chronos?action=delfile&amp;aid=$aid&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos/trash.png"></a>
+                    </td>
+                </tr>
+EOF
+            }
+            $sth_files->finish;
+
+            $return .= <<EOF;
+            </table>
+EOF
+            }
+        $return .= <<EOF;
+        $text->{new_attachment} <input type=file name=new_attachment>
+        </td>
+    </tr>
     <tr>
         <td colspan=2>
             <input type=submit value="$text->{eventsave}">
@@ -238,7 +276,7 @@ EOF
     } else {
         # Création d'un nouvel événement ou modification d'un événement existant par l'initiateur
         my $return = <<EOF;
-<form method=POST action="/Chronos">
+<form method=POST action="/Chronos" enctype="multipart/form-data" name="form1">
 <input type=hidden name=action value=saveevent>
 <input type=hidden name=object value="$object">
 <input type=hidden name=year value=$year>
@@ -291,7 +329,7 @@ EOF
         }
         $return .= <<EOF;
             </select>
-            <select name=start_hour>
+            <select name=start_hour style="visibility:@{[$notime ? 'hidden' : 'visible']}">
 EOF
         foreach ( '00' .. '23' ) {
             my $selected = $_ == ( $event{shour} || $hour ) ? 'selected' : '';
@@ -302,7 +340,7 @@ EOF
         }
         $return .= <<EOF;
             </select>
-            <select name=start_min>
+            <select name=start_min style="visibility:@{[$notime ? 'hidden' : 'visible']}">
 EOF
         foreach ( 0, 15, 30, 45 ) {
             my $string = sprintf ':%02d', $_;
@@ -349,7 +387,7 @@ EOF
         }
         $return .= <<EOF;
             </select>
-            <select name=end_hour>
+            <select name=end_hour style="visibility:@{[$notime ? 'hidden' : 'visible']}">
 EOF
         foreach ( '00' .. '23' ) {
             my $selected = $_ == ( $event{ehour} || $hour + 2 ) ? 'selected' : '';
@@ -360,7 +398,7 @@ EOF
         }
         $return .= <<EOF;
             </select>
-            <select name=end_min>
+            <select name=end_min style="visibility:@{[$notime ? 'hidden' : 'visible']}">
 EOF
         foreach ( 0, 15, 30, 45 ) {
             my $string = sprintf ':%02d', $_;
@@ -372,6 +410,20 @@ EOF
 
         $return .= <<EOF;
             </select>
+            <br>
+            <input type=checkbox name=notime onClick="
+if (this.checked) {
+    document.form1.start_hour.style.visibility = 'hidden';
+    document.form1.start_min.style.visibility = 'hidden';
+    document.form1.end_hour.style.visibility = 'hidden';
+    document.form1.end_min.style.visibility = 'hidden';
+} else {
+    document.form1.start_hour.style.visibility = 'visible';
+    document.form1.start_min.style.visibility = 'visible';
+    document.form1.end_hour.style.visibility = 'visible';
+    document.form1.end_min.style.visibility = 'visible';
+}
+            " @{[$notime ? 'checked' : '']}> $text->{notime}
         </td>
     </tr>
     <tr>
@@ -454,6 +506,7 @@ EOF
         if ($eid) {
             my ( $user, $name, $email ) =
               $dbh->selectrow_array("SELECT user.user, user.name, user.email FROM user, events WHERE events.eid = $eid AND events.initiator = user.user");
+            my $initiator = $self->{parent}->user eq $user ? 1 : 0;
             my $userstring = userstring( $user, $name, $email );
             $return .= <<EOF;
             $userstring <b>($text->{initiator})</b>
@@ -463,11 +516,13 @@ EOF
               $dbh->prepare(
                 "SELECT user.user, user.name, user.email, participants.status FROM user, participants WHERE participants.eid = $eid AND participants.user = user.user ORDER BY user.name, user.user");
             $sth->execute;
+            my %participants;
             while ( my ( $user, $name, $email, $status ) = $sth->fetchrow_array ) {
+                $participants{$user} = 1;
                 my $userstring = userstring( $user, $name, $email );
-                my $statusstring = $text->{"status_$status"};
+                my $statusstring = defined $status ? "<b>(" . $text->{"status_$status"} . ")</b>" : '';
                 $return .= <<EOF;
-            <br>$userstring <b>($statusstring)</b>
+            <br>$userstring $statusstring
 EOF
                 if ( $user eq $self->object ) {
                     if ( $status ne 'CANCELED' ) {
@@ -477,8 +532,37 @@ EOF
                         $return .= "<input type=submit name=confirm value=\"$text->{confirm}\">";
                     }
                 }
+
+                if ( $initiator ) {
+                    $return .= "<input type=submit name=\"remove_$user\" value=\"$text->{remove_part}\">";
+                }
             }
             $sth->finish;
+
+            $return .= <<EOF;
+            </td>
+        </tr>
+        <tr>
+            <td class=eventlabel>$text->{participants_to_add}</td>
+            <td>
+                <select size=5 multiple name=participants>
+EOF
+            $sth = $dbh->prepare("SELECT user, name, email FROM user WHERE user != ? AND user != ? ORDER BY name, user");
+            $sth->execute($self->object, $user);
+            while (my ($user, $name, $email) = $sth->fetchrow_array) {
+                next if $participants{$user};
+                my $string = ($name || $user) . ($email ? " &lt;$email&gt;" : '');
+                $return .= <<EOF;
+                    <option value="$user">$string</option>
+EOF
+            }
+            $sth->finish;
+            $return .= <<EOF;
+                </select><br>
+                $text->{eventconfirm} <input type=checkbox name=confirm>
+            </td>
+        </tr>
+EOF
         } else {
             $return .= <<EOF;
             <select size=5 multiple name=participants>
@@ -523,7 +607,7 @@ EOF
                 $reminder_datetime = $dbh->selectrow_array("SELECT reminder FROM participants WHERE eid = $eid");
             }
             if ( defined $reminder_datetime ) {
-                my ( $Dd, $Dh, $Dm ) = Delta_DHMS( from_datetime($reminder_datetime), from_datetime( $event{start} ) );
+                my ( $Dd, $Dh, $Dm ) = Delta_DHMS( from_datetime($reminder_datetime), from_date( $event{start_date} ), from_time( $event{start_time} ) || (0, 0, 0) );
                 if ($Dd and not $Dh) {
                     $selunit{day} = 'selected';
                     $selnumber{$Dd} = 'selected';
@@ -553,6 +637,48 @@ EOF
         $return .= <<EOF;
         <td>$remind_me</td>
     </tr>
+EOF
+        if ($eid) {
+            $return .= <<EOF;
+    <tr>
+        <td class=eventlabel>$text->{attachments}</td>
+        <td>
+EOF
+            if ($dbh->selectrow_array("SELECT COUNT(*) FROM attachments WHERE eid = $eid")) {
+                $return .= <<EOF;
+            <table class=attachments>
+EOF
+                my $sth_files = $dbh->prepare("SELECT aid, filename, size FROM attachments WHERE eid = $eid ORDER BY filename");
+                $sth_files->execute;
+                while (my ($aid, $filename, $size) = $sth_files->fetchrow_array) {
+                    $filename = encode_entities($filename);
+                    $size = format_size($size);
+                    $return .= <<EOF;
+                <tr>
+                    <td class=attachment>
+                        <a href="/Chronos/getfile/$aid/$filename" class=attachment>$filename</a>
+                    </td>
+                    <td class=attachment>$size</td>
+                    <td valign=top>
+                        <a href="/Chronos?action=delfile&amp;aid=$aid&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day"><img src="/chronos/trash.png"></a>
+                    </td>
+                </tr>
+EOF
+                }
+                $sth_files->finish;
+
+                $return .= <<EOF;
+            </table>
+EOF
+            }
+            $return .= <<EOF;
+            $text->{new_attachment} <input type=file name=new_attachment>
+        </td>
+    </tr>
+EOF
+        }
+
+        $return .= <<EOF;
     <tr>
         <td colspan=2>
             <input type=submit value="$text->{eventsave}">
@@ -571,6 +697,19 @@ EOF
 EOF
 
         return $return;
+    }
+}
+
+sub format_size {
+    my $size = shift;
+    if ($size >= 1024 * 1024 * 1024 / 10) {
+        return sprintf '%0.1f GB', $size / ( 1024 * 1024 * 1024 );
+    } elsif ($size >= 1024 * 1024 / 10) {
+        return sprintf '%0.1f MB', $size / ( 1024 * 1024 );
+    } elsif ($size >= 1024 / 10) {
+        return sprintf '%0.1f kB', $size / 1024;
+    } else {
+        return "$size B";
     }
 }
 

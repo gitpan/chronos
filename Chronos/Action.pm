@@ -1,4 +1,4 @@
-# $Id: Action.pm,v 1.5 2002/07/16 15:12:13 nomis80 Exp $
+# $Id: Action.pm,v 1.6 2002/07/18 13:01:37 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -87,6 +87,10 @@ sub authorized {
 }
 
 sub redirect {
+    return 0;
+}
+
+sub freeform {
     return 0;
 }
 

@@ -153,6 +153,8 @@ table.editevent {
 
 td.eventlabel {
 	font-weight: bold;
+    vertical-align: top;
+    border-bottom: 1px black dotted;
 }
 
 td.dayothermonth {
@@ -177,4 +179,28 @@ a.header {
 
 a.header:visited {
 	color: white;
+}
+
+img {
+	border: none;
+}
+
+td.attachment {
+	font-family: sans-serif;
+	font-size: 10pt;
+	font-weight: bold;
+}
+
+a.attachment {
+	color: blue;
+}
+
+a.attachment:visited {
+	color: blue;
+}
+
+table.attachments {
+	border: none;
+	background-color: white;
+	padding: 10px;
 }

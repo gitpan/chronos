@@ -1,4 +1,4 @@
-# $Id: Chronos.pm,v 1.20.4.1 2002/07/18 15:46:48 nomis80 Exp $
+# $Id: Chronos.pm,v 1.28 2002/07/29 16:07:40 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies 
 #
@@ -23,7 +23,7 @@ package Chronos;
 use strict;
 use Apache::DBI;
 use Apache::Constants qw(:response);
-use Chronos::Static qw(to_datetime from_datetime Compare_YMD);
+use Chronos::Static qw(to_date from_date from_time Compare_YMD);
 use Date::Calc qw(:all);
 use Chronos::Action::Showday;
 use Chronos::Action::EditEvent;
@@ -35,8 +35,10 @@ use Chronos::Action::EditTask;
 use Chronos::Action::SaveTask;
 use Chronos::Action::UserPrefs;
 use Chronos::Action::SaveUserPrefs;
+use Chronos::Action::GetFile;
+use Chronos::Action::DelFile;
 
-our $VERSION = "1.0.4";
+our $VERSION = "1.1.0";
 sub VERSION { $VERSION }
 
 sub handler {
@@ -90,13 +92,15 @@ sub go {
     if ( $self->action->redirect ) {
         $self->action->content;
         return REDIRECT;
+    } elsif ($self->action->freeform) {
+        return $self->action->execute;
+    } else {
+        $self->header;
+        $self->body;
+        $self->footer;
+        $self->sendpage;
+        return OK;
     }
-
-    $self->header;
-    $self->body;
-    $self->footer;
-    $self->sendpage;
-    return OK;
 }
 
 sub lang {
@@ -231,7 +235,6 @@ sub dbh {
         return;
     }
 
-    my $dsn;
     my $dsn = "dbi:$db_type:$db_name" . ( $db_host ? ":$db_host" : '' ) . ( $db_port ? ":$db_port" : '' );
     my $dbh = DBI->connect( $dsn, $db_user, $db_pass, { RaiseError => 1, PrintError => 0 } );
     return $dbh;
@@ -247,25 +250,38 @@ sub gettext {
 
 sub action {
     my $self = shift;
-    my $name = $self->{r}->param('action');
-    if ( $name eq 'showday' ) {
+
+    my $action;
+    if (my $name = $self->{r}->param('action')) {
+        $action = $name;
+    } elsif (my $path_info = $self->{r}->path_info) {
+        ($action) = $path_info =~ /^\/([^\/]+)/;
+    } else {
+        $action = 'showday';
+    }
+        
+    if ( $action eq 'showday' ) {
         return Chronos::Action::Showday->new($self);
-    } elsif ( $name eq 'saveevent' ) {
+    } elsif ( $action eq 'saveevent' ) {
         return Chronos::Action::SaveEvent->new($self);
-    } elsif ( $name eq 'editevent' ) {
+    } elsif ( $action eq 'editevent' ) {
         return Chronos::Action::EditEvent->new($self);
-    } elsif ($name eq 'showmonth') {
+    } elsif ($action eq 'showmonth') {
         return Chronos::Action::Showmonth->new($self);
-    } elsif ($name eq 'showweek') {
+    } elsif ($action eq 'showweek') {
         return Chronos::Action::Showweek->new($self);
-    } elsif ($name eq 'edittask') {
+    } elsif ($action eq 'edittask') {
         return Chronos::Action::EditTask->new($self);
-    } elsif ($name eq 'savetask') {
+    } elsif ($action eq 'savetask') {
         return Chronos::Action::SaveTask->new($self);
-    } elsif ($name eq 'userprefs') {
+    } elsif ($action eq 'userprefs') {
         return Chronos::Action::UserPrefs->new($self);
-    } elsif ($name eq 'saveuserprefs') {
+    } elsif ($action eq 'saveuserprefs') {
         return Chronos::Action::SaveUserPrefs->new($self);
+    } elsif ($action eq 'getfile') {
+        return Chronos::Action::GetFile->new($self);
+    } elsif ($action eq 'delfile') {
+        return Chronos::Action::DelFile->new($self);
     } else {
         return Chronos::Action::Showday->new($self);
     }
@@ -317,13 +333,8 @@ sub minimonth {
 <!-- Begin Chronos::minimonth -->
 <table class=minimonth>
     <tr>
-        <th class=minimonth colspan=7>
-            <a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$prev_prev_year&amp;month=$prev_prev_month&amp;day=$prev_prev_day">&lt;&lt;</a>&nbsp;
-            <a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$prev_year&amp;month=$prev_month&amp;day=$prev_day">&lt;</a>&nbsp;
-            <a class=minimonthheader href="/Chronos?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">@{[ucfirst Month_to_Text($month)]}</a> $year&nbsp;
-            <a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$next_year&amp;month=$next_month&amp;day=$next_day">&gt;</a>&nbsp;
-            <a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$next_next_year&amp;month=$next_next_month&amp;day=$next_next_day">&gt;&gt;</a>
-        </th>
+        <!-- This is all in one big line so that it doesn't get separated. -->
+        <th class=minimonth colspan=7><a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$prev_prev_year&amp;month=$prev_prev_month&amp;day=$prev_prev_day">&lt;&lt;</a>&nbsp;<a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$prev_year&amp;month=$prev_month&amp;day=$prev_day">&lt;</a>&nbsp;<a class=minimonthheader href="/Chronos?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">@{[ucfirst Month_to_Text($month)]}</a>&nbsp;$year&nbsp;<a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$next_year&amp;month=$next_month&amp;day=$next_day">&gt;</a>&nbsp;<a class=minimonthheader href="/Chronos?action=showday&amp;object=$object&amp;year=$next_next_year&amp;month=$next_next_month&amp;day=$next_next_day">&gt;&gt;</a></th>
     </tr>
     <tr>
 EOF
@@ -418,34 +429,73 @@ EOF
     return $return;
 }
 
-sub events {
-    my $self = shift;
-    my $object = $self->action->object;
-    my ($year, $month, $day, @sth) = @_;
+# This function is used in Showmonth and Showweek to find the events happening
+# in a given day.
+# This really should be transformed into a method of an object Chronos::Day. But
+# what use would be an object with only one method? Feel free to implement
+# Chronos::Day if you wish. 
+{
+    # Cache statements so that multiple calls to events_per_day will not build
+    # multiple statements. It is assumed (I haven't searched) that when a
+    # database handle dies, the statement handles that are its children also are
+    # destroyed and therefore the "if (not $sth_events)" check should work.
+    my $sth_events;
+    my $sth_participants;
+    
+    sub events_per_day {
+        my $self = shift;
+        my $dbh = $self->dbh;
+        my $object = $self->action->object;
+        my $object_quoted = $dbh->quote($object);
+        my ($year, $month, $day) = @_;
 
-    my $today = to_datetime($year, $month, $day, 0, 0, 0);
-    my $tomorrow = to_datetime(Add_Delta_Days($year, $month, $day, 1), 0, 0, 0);
-
-    my $return = "";
-    foreach my $sth (@sth) {
-        $sth->execute($today, $tomorrow);
-        while (my ($eid, $name, $start, $end) = $sth->fetchrow_array) {
-            my ($syear, $smonth, $sday, $shour, $smin, $ssec) = from_datetime($start);
-            my ($eyear, $emonth, $eday, $ehour, $emin, $esec) = from_datetime($end);
-            my $range;
-            if (Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) == 0 ) {
-                $range = sprintf '%d:%02d - %d:%02d', $shour, $smin, $ehour, $emin;
-            } else {
-                $range = sprintf '%s %d:%02d - %s %d:%02d', Date_to_Text_Long( $syear, $smonth, $sday ), $shour, $smin, Date_to_Text_Long( $eyear, $emonth, $eday ), $ehour, $emin;
-            }
-
-            $return .= <<EOF;
-            <br><a class=event href="/Chronos?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a><br>$range
+        if (not $sth_events) {
+            $sth_events = $dbh->prepare( <<EOF );
+SELECT eid, name, start_date, start_time, end_date, end_time
+FROM events
+WHERE
+    initiator = $object_quoted
+    AND start_date = ?
+ORDER BY start_time
+EOF
+            $sth_participants = $dbh->prepare( <<EOF );
+SELECT events.eid, events.name, events.start_date, events.start_time, events.end_date, events.end_time
+FROM events, participants
+WHERE
+    events.eid = participants.eid
+    AND participants.user = $object_quoted
+    AND events.start_date = ?
+ORDER BY events.start_time
 EOF
         }
-        $sth->finish;
+
+        my $today = to_date($year, $month, $day);
+
+        my $return = "";
+        foreach my $sth ($sth_events, $sth_participants) {
+            $sth->execute($today);
+            while (my ($eid, $name, $start_date, $start_time, $end_date, $end_time) = $sth->fetchrow_array) {
+                my ($syear, $smonth, $sday, $shour, $smin, $ssec) = (from_date($start_date), from_time($start_time));
+                my ($eyear, $emonth, $eday, $ehour, $emin, $esec) = (from_date($end_date), from_time($end_time));
+                my $range;
+                if (defined $start_time) {
+                    if (Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) == 0 ) {
+                        $range = sprintf '%d:%02d - %d:%02d', $shour, $smin, $ehour, $emin;
+                    } else {
+                        $range = sprintf '%s %d:%02d - %s %d:%02d', Date_to_Text_Long( $syear, $smonth, $sday ), $shour, $smin, Date_to_Text_Long( $eyear, $emonth, $eday ), $ehour, $emin;
+                    }
+                } elsif (Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) != 0 ) {
+                    $range = Date_to_Text_Long($syear, $smonth, $sday) . " - " . Date_to_Text_Long($eyear, $emonth, $eday);
+                }
+
+                $return .= <<EOF;
+            <br><a class=event href="/Chronos?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a>@{[$range ? "<br>$range" : '']}
+EOF
+            }
+            $sth->finish;
+        }
+        return $return;
     }
-    return $return;
 }
 
 1;

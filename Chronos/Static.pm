@@ -1,4 +1,4 @@
-# $Id: Static.pm,v 1.14.2.2 2002/07/19 14:50:15 nomis80 Exp $
+# $Id: Static.pm,v 1.20 2002/07/28 20:46:45 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -23,7 +23,7 @@ package Chronos::Static;
 use strict;
 use Exporter;
 use HTML::Entities;
-if (exists $ENV{MOD_PERL}) {
+if ( exists $ENV{MOD_PERL} ) {
     eval "use Apache::DBI;";
     die $@ if $@;
 } else {
@@ -32,10 +32,11 @@ if (exists $ENV{MOD_PERL}) {
 }
 
 our @ISA       = qw(Exporter);
-our @EXPORT_OK = qw(&gettext &conf &dbh &datetime2values &Compare_YMDHMS &to_datetime &from_datetime &Compare_YMD &from_date &userstring &to_date &lang &get);
-our %EXPORT_TAGS = (all => \@EXPORT_OK);
+our @EXPORT_OK =
+  qw(&gettext &conf &dbh &datetime2values &Compare_YMDHMS &to_datetime &from_datetime &Compare_YMD &from_date &userstring &to_date &lang &get &from_time &to_time);
+our %EXPORT_TAGS = ( all => \@EXPORT_OK );
 
-our $VERSION = '1.0.4';
+our $VERSION = '1.1.0';
 sub VERSION { $VERSION }
 
 =pod
@@ -48,19 +49,19 @@ ou autre.
 sub gettext {
     my $lang = shift || lang();
     my $noentities = shift;
-    
+
     $lang = substr $lang, 0, 2;
-    my $en = parselang('en', $noentities);
+    my $en = parselang( 'en', $noentities );
     # Merge English with $lang. This makes sure that untranslated strings will
     # at least show up as English.
-    my %text = ( %$en, %{parselang($lang, $noentities)} );
+    my %text = ( %$en, %{ parselang( $lang, $noentities ) } );
     return \%text;
 }
 
 sub parselang {
-    my $lang = shift;
+    my $lang       = shift;
     my $noentities = shift;
-    
+
     open LANG, "/usr/share/chronos/lang/$lang";
     my %text;
     while (<LANG>) {
@@ -73,7 +74,7 @@ sub parselang {
                 $value .= $line;
             }
         }
-        $value = encode_entities($value, "\200-\377") unless $noentities;
+        $value = encode_entities( $value, "\200-\377" ) unless $noentities;
         $text{$key} = $value;
     }
     close LANG;
@@ -98,7 +99,6 @@ sub dbh {
         return;
     }
 
-    my $dsn;
     my $dsn =
       "dbi:$db_type:$db_name"
       . ( $db_host ? ":$db_host" : '' )
@@ -115,7 +115,8 @@ sub dbh {
 
 sub conf {
     my %conf;
-    open CONF, "/etc/chronos.conf" or die "Can't open /etc/chronos.conf for reading: $!\n";
+    open CONF, "/etc/chronos.conf"
+      or die "Can't open /etc/chronos.conf for reading: $!\n";
     while (<CONF>) {
         next if /^#/ or /^\s*$/;
         my ( $key, $value ) = $_ =~ /^(\w+?)\s*=\s*(.*)/;
@@ -128,18 +129,24 @@ sub conf {
 
 sub datetime2values {
     my $datetime = shift;
-    my ($year, $month, $day, $hour, $minute, $second) = $datetime =~ /^(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)$/;
-    return ($year, $month, $day, $hour, $minute, $second);
+    my ( $year, $month, $day, $hour, $minute, $second ) =
+      $datetime =~ /^(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)$/;
+    return ( $year, $month, $day, $hour, $minute, $second );
 }
 
 sub Compare_YMDHMS {
-    my ($y1, $M1, $d1, $h1, $m1, $s1, $y2, $M2, $d2, $h2, $m2, $s2) = @_;
-    return ($y1 <=> $y2 || $M1 <=> $M2 || $d1 <=> $d2 || $h1 <=> $h2 || $m1 <=> $m2 || $s1 <=> $s2);
+    my ( $y1, $M1, $d1, $h1, $m1, $s1, $y2, $M2, $d2, $h2, $m2, $s2 ) = @_;
+    return ( $y1 <=> $y2
+          || $M1 <=> $M2
+          || $d1 <=> $d2
+          || $h1 <=> $h2
+          || $m1 <=> $m2
+          || $s1 <=> $s2 );
 }
 
 sub Compare_YMD {
-    my ($y1, $M1, $d1, $y2, $M2, $d2) = @_;
-    return ($y1 <=> $y2 || $M1 <=> $M2 || $d1 <=> $d2);
+    my ( $y1, $M1, $d1, $y2, $M2, $d2 ) = @_;
+    return ( $y1 <=> $y2 || $M1 <=> $M2 || $d1 <=> $d2 );
 }
 
 sub to_datetime {
@@ -154,8 +161,16 @@ sub from_date {
     return shift =~ /^(\d{4})-(\d\d)-(\d\d)$/;
 }
 
+sub from_time {
+    return shift =~ /^(\d\d):(\d\d):(\d\d)$/;
+}
+
 sub to_date {
     return sprintf '%04d-%02d-%02d', @_;
+}
+
+sub to_time {
+    return sprintf '%02d:%02d:%02d', @_;
 }
 
 sub userstring {
@@ -173,47 +188,50 @@ sub userstring {
 
 {
     my $text;
-sub get {
-    my $prompt  = shift;
-    my $options = shift;
+    sub get {
+        my $prompt  = shift;
+        my $options = shift;
 
-    my %enum;
-    if ( $options->{Enum} ) {
-        %enum = map { $_ => 1 } @{ $options->{Enum} };
-    }
-
-    my $value;
-    while ( not $value ) {
-        print "$prompt: ";
+        my %enum;
         if ( $options->{Enum} ) {
-            print "(" . join(",", @{ $options->{Enum} }) . ") ";
-        }
-        if ( $options->{Default} ) {
-            print "[$options->{Default}] ";
-        }
-        if ( $options->{Password} ) {
-            system "stty -echo";
-            chomp( $value = <STDIN> );
-            system "stty echo";
-            $text ||= gettext();
-            printf "\n$text->{chronosadmin_confirm} ";
-            system "stty -echo";
-            chomp( my $confirmation = <STDIN> );
-            system "stty echo";
-            print "\n";
-            undef $value unless $value eq $confirmation;
-        } else {
-            chomp( $value = <STDIN> );
+            %enum = map { $_ => 1 } @{ $options->{Enum} };
         }
 
-        $value ||= $options->{Default};
+        my $value;
+        while ( not $value ) {
+            print "$prompt: ";
+            if ( $options->{Enum} ) {
+                print "(" . join ( ",", @{ $options->{Enum} } ) . ") ";
+            }
+            if ( $options->{Default} ) {
+                print "[$options->{Default}] ";
+            }
+            if ( $options->{Password} ) {
+                system "stty -echo";
+                chomp( $value = <STDIN> );
+                system "stty echo";
+                print "\n";
+                unless ( $options->{NoConfirm} ) {
+                    $text ||= gettext();
+                    printf "$text->{chronosadmin_confirm} ";
+                    system "stty -echo";
+                    chomp( my $confirmation = <STDIN> );
+                    system "stty echo";
+                    print "\n";
+                    undef $value unless $value eq $confirmation;
+                }
+            } else {
+                chomp( $value = <STDIN> );
+            }
 
-        if (%enum) {
-            undef $value if not $enum{$value};
+            $value ||= $options->{Default};
+
+            if (%enum) {
+                undef $value if not $enum{$value};
+            }
         }
+        return $value;
     }
-    return $value;
-}
 }
 
 1;

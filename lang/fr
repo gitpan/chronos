@@ -1,4 +1,4 @@
-# $Id: fr,v 1.12.2.2 2002/07/19 14:50:15 nomis80 Exp $
+# $Id: fr,v 1.19 2002/07/29 13:25:08 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -115,7 +115,8 @@ create_db_success=Installation de Chronos effectuée avec succès
 chronosadmin_usage=<<EOF
 Usage:
     %s [-u username] [-p [password]] [--autodel] [--new-user]
-    [--new-users-batch[=FILE]] [--del-user=username] [database[@host]]
+    [--new-users-batch[=FILE]] [--del-user=username] [--show-holidays]
+    [database[@host]]
 
 Options:
     -u username
@@ -133,16 +134,23 @@ Options:
             username,password,email,access
     --del-user=username
         Supprimer un utilisateur.
+    --show-holidays
+        Cette commande imprime les profiles de jours fériés disponibles sur
+        votre système. Vous pouvez après inclure une ligne dans votre
+        chronos.conf qui ressemblerait à ceci:
+            HOLIDAYS=CA-QC  # Canada/Québec
 EOF
 chronosadmin_exists=L'usager %s existe déjà. Effacer?
 chronosadmin_created=Usager %s créé
 chronosadmin_deleted=Usager %s supprimé
 chronosadmin_confirm=Confirmation:
 chronosadmin_pass=Mot de passe
+chronosadmin_p=Mot de passe MySQL
 chronosadmin_username=Nom d'usager (max. 16 caractères)
 chronosadmin_email=Adresse de courriel
 chronosadmin_lang=Langue
 chronosadmin_realname=Nom réel de l'usager
+chronosadmin_connectok=Connecté à la base de données MySQL
 remindd_template=<<EOF
 To: %%TO%%
 From: Chronos
@@ -167,3 +175,8 @@ fr=Français
 it=Italien
 de=Allemand
 no=Norvégien
+attachments=Fichiers attachés:
+new_attachment=Nouveau fichier attaché:
+participants_to_add=Ajout de participants:
+remove_part=Enlever
+notime=Pas d'heure

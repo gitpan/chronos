@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: remindd,v 1.3 2002/07/16 19:27:03 nomis80 Exp $
+# $Id: remindd,v 1.5 2002/07/29 16:07:40 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -22,7 +22,7 @@
 
 use strict;
 use Date::Calc qw(:all);
-use Chronos::Static qw(dbh from_datetime gettext);
+use Chronos::Static qw(dbh from_date from_time gettext conf);
 use POSIX qw(setsid);
 
 unless ( $ARGV[0] eq '-D' ) {
@@ -36,6 +36,7 @@ unless ( $ARGV[0] eq '-D' ) {
     close PID;
 }
 
+our $conf = conf();
 our $dbh = dbh();
 $SIG{HUP} = sub { $dbh = dbh() };
 
@@ -70,7 +71,7 @@ while (1) {
         $sth_update_participants->execute($eid, $user);
     }
 
-    sleep 60;
+    select(undef, undef, undef, 50);
 }
 
 sub sendmail {
@@ -84,18 +85,19 @@ sub sendmail {
 
     $mail =~ s/\%\%NAME\%\%/$event->{name}/g;
 
-    my ($syear, $smonth, $sday, $shour, $smin) = from_datetime($event->{start});
-    my $start = sprintf '%s %d:%02d', Date_to_Text_Long( $syear, $smonth, $sday ), $shour, $smin;
+    my ($syear, $smonth, $sday, $shour, $smin) = (from_date($event->{start_date}), from_time($event->{start_time}));
+    my $start = Date_to_Text_Long( $syear, $smonth, $sday ) . (defined $shour ? sprintf ' %d:%02d', $shour, $smin : '');
     $mail =~ s/\%\%START\%\%/$start/g;
 
-    my ($eyear, $emonth, $eday, $ehour, $emin) = from_datetime($event->{end});
-    my $end = sprintf '%s %d:%02d', Date_to_Text_Long( $eyear, $emonth, $eday ), $ehour, $emin;
+    my ($eyear, $emonth, $eday, $ehour, $emin) = (from_date($event->{end_date}), from_time($event->{end_time}));
+    my $end = Date_to_Text_Long( $eyear, $emonth, $eday ) . (defined $ehour ? sprintf ' %d:%02d', $ehour, $emin : '');
     $mail =~ s/\%\%END\%\%/$end/g;
 
     $mail =~ s/\%\%DESCRIPTION\%\%/$event->{description}/g;
     $mail =~ s/\%\%VERSION\%\%/$Chronos::Static::VERSION/g;
 
-    open MAIL, "| /usr/sbin/sendmail -oi -t";
+    my $sendmail = $conf->{SENDMAIL} || "/usr/sbin/sendmail";
+    open MAIL, "| $sendmail -oi -t";
     print MAIL $mail;
     close MAIL;
 }

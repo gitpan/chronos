@@ -1,4 +1,4 @@
-# $Id: Showmonth.pm,v 1.10 2002/07/18 12:37:02 nomis80 Exp $
+# $Id: Showmonth.pm,v 1.13 2002/07/29 16:07:40 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -24,6 +24,8 @@ use strict;
 use Chronos::Action;
 use Date::Calc qw(:all);
 use HTML::Entities;
+use Date::Calendar::Profiles qw($Profiles);
+use Date::Calendar;
 
 our @ISA = qw(Chronos::Action);
 
@@ -44,10 +46,10 @@ sub header {
     my $text = $chronos->gettext;
     my $return = <<EOF;
 <!-- Begin Chronos::Action::Showmonth header -->
-<table style="border:hidden; margin-style:none" cellspacing=0 cellpadding=0 width="100%">
+<table style="margin-style:none" cellspacing=0 cellpadding=0 width="100%">
     <tr>
         <td class=header>
-            <table style="border:hidden" cellspacing=0 cellpadding=2>
+            <table style="border:none" cellspacing=0 cellpadding=2>
 EOF
     foreach my $row (0, 1) {
         $return .= <<EOF;
@@ -116,11 +118,6 @@ EOF
     </tr>
 EOF
 
-    my $dbh = $chronos->dbh;
-    my $object_quoted = $dbh->quote($self->object);
-    my $sth_events = $dbh->prepare("SELECT eid, name, start, end FROM events WHERE initiator = $object_quoted AND start >= ? AND start < ? ORDER BY start");
-    my $sth_participants = $dbh->prepare("SELECT events.eid, events.name, events.start, events.end FROM events, participants WHERE events.eid = participants.eid AND participants.user = $object_quoted AND events.start >= ? AND events.start < ? ORDER BY events.start");
-
     my $dow_first = Day_of_Week( $year, $month, 1 );
     if ($dow_first != 1) {
         $return .= <<EOF;
@@ -129,10 +126,11 @@ EOF
     }
     foreach ( 1 .. ( $dow_first - 1 ) ) {
         my ( $mini_year, $mini_month, $mini_day ) = Add_Delta_Days( $year, $month, 1, -( $dow_first - $_ ) );
+        my $holidays = $self->get_holidays($mini_year, $mini_month, $mini_day);
         $return .= <<EOF;
-        <td class=dayothermonth height=80><a class=daycurmonth href="/Chronos?action=showday&amp;object=$object&amp;year=$mini_year&amp;month=$mini_month&amp;day=$mini_day">$mini_day</a>
+        <td class=dayothermonth height=80><a class=daycurmonth href="/Chronos?action=showday&amp;object=$object&amp;year=$mini_year&amp;month=$mini_month&amp;day=$mini_day">$mini_day</a>$holidays
 EOF
-        $return .= $chronos->events($mini_year, $mini_month, $mini_day, $sth_events, $sth_participants);
+        $return .= $chronos->events_per_day($mini_year, $mini_month, $mini_day);
         $return .= "</td>";
     }
 
@@ -148,11 +146,12 @@ EOF
 EOF
         }
 
+        my $holidays = $self->get_holidays($year, $month, $_);
         $return .= <<EOF;
-        <td class=daycurmonth height=80><a class=$class href="/Chronos?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$_">$_</a>
+        <td class=daycurmonth height=80><a class=$class href="/Chronos?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$_">$_</a>$holidays
 EOF
 
-        $return .= $chronos->events($year, $month, $_, $sth_events, $sth_participants);
+        $return .= $chronos->events_per_day($year, $month, $_);
 
         $return .= <<EOF;
         </td>
@@ -167,10 +166,11 @@ EOF
     my $dow_last = Day_of_Week( $year, $month, $days );
     foreach ( ( $dow_last + 1 ) .. 7 ) {
         my ( $mini_year, $mini_month, $mini_day ) = Add_Delta_Days( $year, $month, $days, ( $_ - $dow_last ) );
+        my $holidays = $self->get_holidays($year, $month, $_);
         $return .= <<EOF;
         <td class=dayothermonth height=80><a class=daycurmonth href="/Chronos?action=showday&amp;object=$object&amp;year=$mini_year&amp;month=$mini_month&amp;day=$mini_day">$mini_day</a>
 EOF
-        $return .= $chronos->events($mini_year, $mini_month, $mini_day, $sth_events, $sth_participants);
+        $return .= $chronos->events_per_day($mini_year, $mini_month, $mini_day);
         $return .= "</td>";
     }
 
@@ -180,6 +180,29 @@ EOF
 <!-- End Chronos::Action::Showmonth body -->
 EOF
     return $return;
+}
+
+{
+    # Cache calendars per year/profile because it is too slow otherwise
+    my %calendars;
+    
+    sub get_holidays {
+        my $self = shift;
+        my ($year, $month, $day) = @_;
+        my $profile = $self->{parent}->conf->{HOLIDAYS};
+        return 0 if not $profile;
+        if (not $calendars{$profile}{$year}) {
+            $calendars{$profile}{$year} = Date::Calendar->new($Profiles->{$profile})->year($year);
+        }
+        my @holidays = $calendars{$profile}{$year}->labels($year, $month, $day);
+        shift @holidays;
+        encode_entities($_) foreach @holidays;
+        if (@holidays) {
+            return "<br>" . join("<br>", @holidays);
+        } else {
+            return '';
+        }
+    }
 }
 
 1;
