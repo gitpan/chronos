@@ -1,5 +1,5 @@
 #!/usr/bin/perl 
-# $Id: chronosadmin,v 1.11 2002/07/29 13:25:08 nomis80 Exp $
+# $Id: chronosadmin,v 1.14 2002/08/09 16:00:14 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -24,7 +24,7 @@ use strict;
 use Getopt::Long;
 use Chronos::Static qw(gettext lang get);
 
-my $text = gettext('', 1);
+my $text = gettext( '', 1 );
 
 my ( $db_user, $db_pass, $db, $autodel, $new_user, $db_pass, $new_users_batch,
     $deluser );
@@ -45,11 +45,12 @@ db_pass($db_pass) if defined $db_pass;
 my $dbh = dbh();
 print "$text->{chronosadmin_connectok}\n";
 new_user() if $new_user;
-new_users_batch($new_users_batch) if $new_users_batch;
+new_users_batch($new_users_batch) if defined $new_users_batch;
 del_user($deluser)                if $deluser;
 
 sub db_pass {
-    $db_pass = shift || get($text->{chronosadmin_p}, { Password => 1, NoConfirm => 1 } );
+    $db_pass = shift
+      || get( $text->{chronosadmin_p}, { Password => 1, NoConfirm => 1 } );
 }
 
 sub usage {
@@ -71,13 +72,14 @@ sub usage {
 }
 
 sub new_user {
-    my $username = get($text->{chronosadmin_username});
-    my $password = get($text->{chronosadmin_pass}, { Password => 1 } );
-    my $email    = get($text->{chronosadmin_email});
+    my $username = get( $text->{chronosadmin_username} );
+    my $password = get( $text->{chronosadmin_pass}, { Password => 1 } );
+    my $email    = get( $text->{chronosadmin_email} );
     my @langs = grep { -f } </usr/share/chronos/lang/*>;
     s|/usr/share/chronos/lang/|| foreach @langs;
-    my $lang     = get($text->{chronosadmin_lang}, { Default => lang(), Enum => \@langs } );
-    my $name     = get($text->{chronosadmin_realname});
+    my $lang =
+      get( $text->{chronosadmin_lang}, { Default => lang(), Enum => \@langs } );
+    my $name = get( $text->{chronosadmin_realname} );
     newuser( $username, $password, $email, $lang, $name );
 }
 
@@ -132,6 +134,7 @@ sub del_user {
             $dbh->do("UPDATE events SET initiator = NULL WHERE eid = $eid");
         } else {
             $dbh->do("DELETE FROM events WHERE eid = $eid");
+            $dbh->do("DELETE FROM attachments WHERE eid = $eid");
         }
     }
     $sth->finish;
@@ -139,6 +142,7 @@ sub del_user {
     $dbh->do("DELETE FROM acl WHERE user = $username_quoted");
     $dbh->do("DELETE FROM acl WHERE object = $username_quoted");
     $dbh->do("DELETE FROM participants WHERE user = $username_quoted");
+    $dbh->do("DELETE FROM tasks WHERE user = $username_quoted");
 
     printf "$text->{chronosadmin_deleted}\n", $username;
 }
@@ -161,7 +165,7 @@ sub new_users_batch {
 sub holidays {
     # Don't always load the module, it is rarely used. Saves startup time.
     eval "use Date::Calendar::Profiles";
-    print join("\n", sort keys %$Date::Calendar::Profiles::Profiles);
+    print join ( "\n", sort keys %$Date::Calendar::Profiles::Profiles );
     exit 0;
 }
 

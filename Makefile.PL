@@ -1,4 +1,4 @@
-# $Id: Makefile.PL,v 1.11 2002/07/31 12:51:26 nomis80 Exp $
+# $Id: Makefile.PL,v 1.13 2002/08/09 16:00:14 nomis80 Exp $
 use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
@@ -33,8 +33,8 @@ WriteMakefile(
 sub MY::install {
     package MY;
     my $inherited = shift->SUPER::install(@_);
-    $inherited =~ s/^(install ::.*)/$1 lang_install html_install startup_install/m;
-    $inherited =~ s/^(uninstall ::.*)/$1 lang_uninstall html_uninstall startup_uninstall/m;
+    $inherited =~ s/^(install ::.*)/$1 lang_install html_install/m;
+    $inherited =~ s/^(uninstall ::.*)/$1 lang_uninstall html_uninstall/m;
     return $inherited;
 }
 
@@ -54,19 +54,15 @@ html_install:
 	mkdir -p /var/www/ssl/chronos_static
 	install -m 644 $html_files /var/www/ssl/chronos_static
 
-startup_install:
-	install -m 755 remindd /etc/rc.d/init.d
-
 lang_uninstall:
 EOF
-    $return .= "\trm -f " . ( join " ", map { "/usr/share/chronos/$_" } grep { -f } <lang/*> ) . "\n";
+    $return .= "\trm -f "
+      . ( join " ", map { "/usr/share/chronos/$_" } grep { -f } <lang/*> )
+      . "\n";
     $return .= <<EOF;
 
 html_uninstall:
 	rm -f $html_files2
-
-startup_uninstall:
-	rm -f /etc/rc.d/init.d/remindd
 EOF
     return $return;
 }

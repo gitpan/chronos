@@ -1,4 +1,4 @@
-# $Id: UserPrefs.pm,v 1.4 2002/07/26 15:20:07 nomis80 Exp $
+# $Id: UserPrefs.pm,v 1.6 2002/08/09 16:00:14 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -36,26 +36,30 @@ sub header {
 }
 
 sub content {
-    my $self = shift;
-    my $chronos = $self->{parent};
-    my $text = $chronos->gettext;
-    my $dbh = $chronos->dbh;
-    my $user = $chronos->user;
+    my $self        = shift;
+    my $chronos     = $self->{parent};
+    my $text        = $chronos->gettext;
+    my $dbh         = $chronos->dbh;
+    my $user        = $chronos->user;
     my $user_quoted = $dbh->quote($user);
+    my $uri         = $chronos->{r}->uri;
 
-    my $minimonth = $chronos->minimonth($chronos->day);
+    my $minimonth = $chronos->minimonth( $chronos->day );
 
-    my ($lang, $public_writable, $public_readable, $name, $email) = $dbh->selectrow_array("SELECT lang, public_writable, public_readable, name, email FROM user WHERE user = $user_quoted");
-    $name = encode_entities($name);
+    my ( $lang, $public_writable, $public_readable, $name, $email ) =
+      $dbh->selectrow_array(
+"SELECT lang, public_writable, public_readable, name, email FROM user WHERE user = $user_quoted"
+      );
+    $name  = encode_entities($name);
     $email = encode_entities($email);
-    
+
     my $return = <<EOF;
 <table style="border:none">
     <tr>
         <td valign=top>$minimonth</td>
         <td valign=top width="100%">
 
-<form method=post action="/Chronos">
+<form method=post action="$uri">
 <input type=hidden name=action value=saveuserprefs>
 
 <table class=editevent>
@@ -80,7 +84,7 @@ EOF
     my @langs = grep { -f } </usr/share/chronos/lang/*>;
     s|/usr/share/chronos/lang/|| foreach @langs;
     my %langs = map { $_ => $text->{$_} } @langs;
-    foreach (sort { $langs{$a} cmp $langs{$b} } keys %langs) {
+    foreach ( sort { $langs{$a} cmp $langs{$b} } keys %langs ) {
         my $selected = $_ eq $lang ? 'selected' : '';
         $return .= <<EOF;
             <option value="$_" $selected>$langs{$_}</option>
@@ -96,9 +100,9 @@ EOF
 EOF
 
     my %agendatype;
-    if ($public_writable eq 'Y' and $public_readable eq 'Y') {
+    if ( $public_writable eq 'Y' and $public_readable eq 'Y' ) {
         $agendatype{publicrw} = 'selected';
-    } elsif ($public_readable eq 'Y') {
+    } elsif ( $public_readable eq 'Y' ) {
         $agendatype{publicr} = 'selected';
     } else {
         $agendatype{private} = 'selected';
@@ -115,21 +119,26 @@ EOF
             <table style="border:none; background-color:white">
 EOF
 
-    my $sth_user = $dbh->prepare("SELECT user, name, email FROM user WHERE user != $user_quoted ORDER BY name, user");
-    my $sth_acl = $dbh->prepare("SELECT can_read, can_write FROM acl WHERE object= ? AND user = ?");
+    my $sth_user =
+      $dbh->prepare(
+"SELECT user, name, email FROM user WHERE user != $user_quoted ORDER BY name, user"
+      );
+    my $sth_acl =
+      $dbh->prepare(
+        "SELECT can_read, can_write FROM acl WHERE object= ? AND user = ?");
 
     $sth_user->execute;
-    while (my ($userr, $name, $email) = $sth_user->fetchrow_array) {
-        my $string = userstring($userr, $name, $email);
-        
+    while ( my ( $userr, $name, $email ) = $sth_user->fetchrow_array ) {
+        my $string = userstring( $userr, $name, $email );
+
         my %indivpriv;
-        $sth_acl->execute($user, $userr);
-        my ($can_read, $can_write) = $sth_acl->fetchrow_array;
+        $sth_acl->execute( $user, $userr );
+        my ( $can_read, $can_write ) = $sth_acl->fetchrow_array;
         $sth_acl->finish;
 
-        if ($can_read eq 'Y' and $can_write eq 'Y') {
+        if ( $can_read eq 'Y' and $can_write eq 'Y' ) {
             $indivpriv{rw} = 'selected';
-        } elsif ($can_read eq 'Y') {
+        } elsif ( $can_read eq 'Y' ) {
             $indivpriv{r} = 'selected';
         } else {
             $indivpriv{none} = 'selected';

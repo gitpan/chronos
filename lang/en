@@ -1,4 +1,4 @@
-# $Id: en,v 1.12 2002/08/04 20:34:49 nomis80 Exp $
+# $Id: en,v 1.16 2002/08/12 18:31:55 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -70,7 +70,8 @@ This is an automated message. Do not reply directly.
 Event name: %%NAME%%
 Description: %%DESCRIPTION%%
 
-Please confirm your presence.
+Please confirm your presence by going to
+%%CONFIRMURL%%
 
 -- 
 Chronos %%VERSION%% by Linux Québec Technologies
@@ -134,7 +135,7 @@ Options:
         This command prints out the holiday profiles available on your system.
         You can afterward include a line in your chronos.conf that looks like
         this:
-            HOLIDAYS=CA-QC  # Canada/Québec
+            HOLIDAYS=US  # United States
 EOF
 chronosadmin_exists=The %s user already exists. Delete?
 chronosadmin_created=User %s created
@@ -171,9 +172,14 @@ fr=French
 it=Italian
 de=German
 no=Norwegian
+po=Portuguese
 attachments=Attached files:
 new_attachment=New attachment:
 participants_to_add=Add participants:
 remove_part=Remove
 notime=No time
 errornotitle=This task is missing a title.
+remindd_forking=Forking...
+remindd_forkerror=Couldn't fork: %s
+remindd_setsiderror=Can't start a new session: %s
+remindd_usage=Usage: %s [-D] [-f <config file>]

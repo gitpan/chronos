@@ -1,4 +1,4 @@
-# $Id: Showday.pm,v 1.25 2002/08/04 14:58:26 nomis80 Exp $
+# $Id: Showday.pm,v 1.28 2002/08/12 18:27:35 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -34,17 +34,22 @@ sub type {
 }
 
 sub header {
-    my $self = shift;
+    my $self   = shift;
     my $object = $self->object;
     my ( $year, $month, $day ) = $self->{parent}->day;
     my $text = $self->{parent}->gettext;
+    my $uri  = $self->{parent}{r}->uri;
+    my $date =
+      $self->{parent}
+      ->format_date( $self->{parent}->conf->{HEADER_DATE_FORMAT} || '%(long)',
+        Today_and_Now() );
     return <<EOF;
 <table style="margin-style:none" cellspacing=0 cellpadding=0 width="100%">
     <tr>
-        <td class=header>@{[Date_to_Text_Long(Today())]}</td>
+        <td class=header>$date</td>
         <td class=header align=right>
-            <a href="/Chronos?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
-            <a href="/Chronos?action=showweek&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{week}</a>
+            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
+            <a href="$uri?action=showweek&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{week}</a>
         </td>
     </tr>
 </table>
@@ -54,12 +59,12 @@ EOF
 sub content {
     my $self    = shift;
     my $chronos = $self->{parent};
-    my $text = $chronos->gettext;
+    my $text    = $chronos->gettext;
 
     my ( $year, $month, $day ) = $chronos->day;
     my $minimonth = $self->{parent}->minimonth( $year, $month, $day );
-    my $dayview = $self->dayview( $year, $month, $day );
-    my $taskview = $self->taskview($year, $month, $day);
+    my $dayview  = $self->dayview( $year,  $month, $day );
+    my $taskview = $self->taskview( $year, $month, $day );
 
     return <<EOF;
 <table width="100%" style="border:none">
@@ -78,13 +83,14 @@ EOF
 }
 
 sub taskview {
-    my $self = shift;
+    my $self   = shift;
     my $object = $self->object;
-    my ($year, $month, $day) = @_;
+    my ( $year, $month, $day ) = @_;
     my $chronos = $self->{parent};
-    my $dbh = $chronos->dbh;
-    my $text = $chronos->gettext;
-    
+    my $dbh     = $chronos->dbh;
+    my $text    = $chronos->gettext;
+    my $uri     = $chronos->{r}->uri;
+
     my $return = <<EOF;
 <!-- Begin Chronos::Action::Showday::tasksview -->
 <table class=taskview width="100%">
@@ -92,16 +98,20 @@ sub taskview {
     <tr><td><ul>
 EOF
 
-    my $sth = $dbh->prepare("SELECT tid, title, priority FROM tasks WHERE user = ? ORDER BY priority, title");
-    $sth->execute($self->object);
-    while (my ($tid, $title, $priority) = $sth->fetchrow_array) {
+    my $sth =
+      $dbh->prepare(
+"SELECT tid, title, priority FROM tasks WHERE user = ? ORDER BY priority, title"
+      );
+    $sth->execute( $self->object );
+    while ( my ( $tid, $title, $priority ) = $sth->fetchrow_array ) {
         $title = encode_entities($title);
-        $return .= qq(<li>($priority) <a href="/Chronos?action=edittask&amp;tid=$tid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$title</a></li>);
+        $return .=
+qq(<li>($priority) <a href="$uri?action=edittask&amp;tid=$tid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$title</a></li>);
     }
     $sth->finish;
     $return .= qq(</ul></td></tr>\n) . <<EOF;
     <tr>
-        <td class=minimonthfooter><a href="/Chronos?action=edittask&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{newtask}</a></td>
+        <td class=minimonthfooter><a href="$uri?action=edittask&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{newtask}</a></td>
     </tr>
 </table>
 <!-- End Chronos::Action::Showday::taskview -->
@@ -111,12 +121,14 @@ EOF
 
 sub dayview {
     my $self    = shift;
-    my $object = $self->object;
+    my $object  = $self->object;
     my $chronos = $self->{parent};
+    my $conf    = $chronos->conf;
     my ( $year, $month, $day ) = @_;
 
     my $dbh  = $chronos->dbh;
     my $text = $chronos->gettext;
+    my $uri  = $chronos->{r}->uri;
 
     my $return = <<EOF;
 <!-- Begin Chronos::Action::Showday::dayview -->
@@ -124,14 +136,14 @@ sub dayview {
     <tr>
 EOF
 
-    my $user_quoted            = $dbh->quote( $self->object );
+    my $user_quoted = $dbh->quote( $self->object );
 
     # These statements are my pride and my joy
 
     # Find how many events are happening concurrently +- 1 hour (ie. will occupy
     # the same row when displayed in a grid having 1 row for each hour). This
     # statement find the events the user himself started.
-    my $sth_simul_events       = $dbh->prepare( <<EOF );
+    my $sth_simul_events = $dbh->prepare( <<EOF );
 SELECT COUNT(*) 
 FROM events 
 WHERE
@@ -193,7 +205,7 @@ WHERE
             )
     )
 EOF
-    
+
     # The two statements defined above take these parameters:
     # 1) The date of the current day
     # 2) The date of the current day
@@ -203,24 +215,33 @@ EOF
     # 6) The current hour
     # 7) The current hour
 
+    my $today_date = to_date( $year, $month, $day );
 
-    my $today_date = to_date($year, $month, $day);
-    
     my $max_simul_events;
     foreach my $hour ( 0 .. 23 ) {
-        my $curhour_time = to_time($hour);
-        my $nexthour_time = to_time($hour, 59, 59);
+        my $curhour_time  = to_time($hour);
+        my $nexthour_time = to_time( $hour, 59, 59 );
 
-        $sth_simul_events->execute( $today_date, $today_date, $nexthour_time, $today_date, $today_date, $curhour_time, $curhour_time );
-        $sth_simul_participants->execute( $today_date, $today_date, $nexthour_time, $today_date, $today_date, $curhour_time, $curhour_time );
-        my $simul_events = $sth_simul_events->fetchrow_array + $sth_simul_participants->fetchrow_array;
+        $sth_simul_events->execute(
+            $today_date, $today_date,   $nexthour_time, $today_date,
+            $today_date, $curhour_time, $curhour_time
+        );
+        $sth_simul_participants->execute(
+            $today_date, $today_date,   $nexthour_time, $today_date,
+            $today_date, $curhour_time, $curhour_time
+        );
+        my $simul_events = $sth_simul_events->fetchrow_array +
+          $sth_simul_participants->fetchrow_array;
         $sth_simul_events->finish;
         $sth_simul_participants->finish;
         $max_simul_events = $simul_events if $simul_events > $max_simul_events;
     }
 
-    my $daystring = Date_to_Text_Long($year, $month, $day);
-    my $holidays = Chronos::Action::Showmonth::get_holidays($self, $year, $month, $day);
+    my $daystring =
+      $chronos->format_date( $conf->{HEADER_DATE_FORMAT} || '%(long)',
+        Today_and_Now() );
+    my $holidays =
+      Chronos::Action::Showmonth::get_holidays( $self, $year, $month, $day );
     $return .= <<EOF;
         <th style="border-top:hidden; border-left:hidden;"></th>
         <th class=dayview colspan=@{[($max_simul_events || 1) + 0]}>$daystring@{[$year == 1983 && $month == 2 && $day == 3 ? " (Simon Perreault's birth day!)" : '']}$holidays</th>
@@ -233,7 +254,7 @@ EOF
         foreach my $hour ( 0 .. 23 ) {
             $return .= <<EOF;
     <tr>
-        <td class=dayviewhour><a href="/Chronos?action=editevent&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day&amp;hour=$hour">$hour:00</a></td>
+        <td class=dayviewhour><a href="$uri?action=editevent&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day&amp;hour=$hour">$hour:00</a></td>
         <td class=dayview>&nbsp;</td>
     </tr>
 EOF
@@ -285,7 +306,7 @@ EOF
         # 1) The current date
         # 2) The current date
         # 3) The current date
-        
+
         # Find the events happening between a given hour and hour + 1.
         my $sth_events = $dbh->prepare( <<EOF );
 SELECT eid, name, start_date, start_time, end_date, end_time, description, reminder
@@ -323,53 +344,102 @@ EOF
         foreach my $hour ( 0 .. 23 ) {
             $return .= <<EOF;
     <tr>
-        <td class=dayviewhour><a href="/Chronos?action=editevent&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day&amp;hour=$hour">$hour:00</a></td>
+        <td class=dayviewhour><a href="$uri?action=editevent&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day&amp;hour=$hour">$hour:00</a></td>
 EOF
 
             my @sths;
-            
-            my $today_date = to_date($year, $month, $day);
+
+            my $today_date = to_date( $year, $month, $day );
             my $curhour_time = to_time($hour);
-            my $nexthour_time = to_time($hour, 59, 59);
-            if ($hour == 0) {
-                $sth_events_first_hour->execute($today_date, $today_date, $today_date);
-                $sth_participants_first_hour->execute($today_date, $today_date, $today_date);
-                @sths = ($sth_events_first_hour, $sth_participants_first_hour);
+            my $nexthour_time = to_time( $hour, 59, 59 );
+            if ( $hour == 0 ) {
+                $sth_events_first_hour->execute( $today_date, $today_date,
+                    $today_date );
+                $sth_participants_first_hour->execute( $today_date, $today_date,
+                    $today_date );
+                @sths =
+                  ( $sth_events_first_hour, $sth_participants_first_hour );
             } else {
-                $sth_events->execute($today_date, $curhour_time, $nexthour_time);
-                $sth_participants->execute($today_date, $curhour_time, $nexthour_time);
-                @sths = ($sth_events, $sth_participants);
+                $sth_events->execute( $today_date, $curhour_time,
+                    $nexthour_time );
+                $sth_participants->execute( $today_date, $curhour_time,
+                    $nexthour_time );
+                @sths = ( $sth_events, $sth_participants );
             }
 
             foreach my $sth (@sths) {
-                while ( my ( $eid, $name, $start_date, $start_time, $end_date, $end_time, $description, $reminder, $status ) = $sth->fetchrow_array ) {
-                    my ($syear, $smonth, $sday, $shour, $smin, $ssec) = (from_date($start_date), from_time($start_time));
-                    my ($eyear, $emonth, $eday, $ehour, $emin, $esec) = (from_date($end_date), from_time($end_time));
+                while (
+                    my (
+                        $eid,         $name,     $start_date,
+                        $start_time,  $end_date, $end_time,
+                        $description, $reminder, $status
+                    )
+                    = $sth->fetchrow_array
+                  )
+                {
+                    my ( $syear, $smonth, $sday, $shour, $smin, $ssec ) =
+                      ( from_date($start_date), from_time($start_time) );
+                    my ( $eyear, $emonth, $eday, $ehour, $emin, $esec ) =
+                      ( from_date($end_date), from_time($end_time) );
 
                     my $rowspan;
-                    if (defined $start_time) {
-                        my ($start_row, $end_row) = ($shour, $ehour - ($emin > 0 ? 0 : 1));
-                        if (Compare_YMD($syear, $smonth, $sday, $year, $month, $day) == -1) {
+                    if ( defined $start_time ) {
+                        my ( $start_row, $end_row ) =
+                          ( $shour, $ehour - ( $emin > 0 ? 0 : 1 ) );
+                        if (
+                            Compare_YMD( $syear, $smonth, $sday, $year, $month,
+                                $day ) == -1
+                          )
+                        {
                             $start_row = 0;
                         }
-                        if (Compare_YMD($eyear, $emonth, $eday, $year, $month, $day) == 1) {
+                        if (
+                            Compare_YMD( $eyear, $emonth, $eday, $year, $month,
+                                $day ) == 1
+                          )
+                        {
                             $end_row = 23;
                         }
-                        $rowspan  = $end_row - $start_row + 1;
+                        $rowspan = $end_row - $start_row + 1;
                     } else {
                         $rowspan = 24;
                     }
 
-                    my $range;
-                    if (defined $start_time) {
-                        if ( Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) == 0 ) {
-                            $range = sprintf '%d:%02d - %d:%02d', $shour, $smin, $ehour, $emin;
+                    my $format;
+                    if ( defined $start_time ) {
+                        if (
+                            Compare_YMD(
+                                $syear, $smonth, $sday,
+                                $eyear, $emonth, $eday
+                            ) == 0
+                          )
+                        {
+                            $format = $conf->{DAY_DATE_FORMAT} || '%k:%M';
                         } else {
-                            $range = sprintf '%s %d:%02d - %s %d:%02d', Date_to_Text_Long( $syear, $smonth, $sday ), $shour, $smin, Date_to_Text_Long( $eyear, $emonth, $eday ), $ehour, $emin;
+                            $format = $conf->{DAY_MULTIDAY_DATE_FORMAT}
+                              || '%(long) %k:%M';
                         }
-                    } elsif ( Compare_YMD($syear, $smonth, $sday, $eyear, $emonth, $eday) != 0 ) {
-                        $range = Date_to_Text_Long($syear, $smonth, $sday) . " - " . Date_to_Text_Long($eyear, $emonth, $eday);
+                    } elsif (
+                        Compare_YMD( $syear, $smonth, $sday, $eyear, $emonth,
+                            $eday ) != 0
+                      )
+                    {
+                        $format = $conf->{DAY_MULTIDAY_NOTIME_DATE_FORMAT}
+                          || '%(long)';
+                    } else {
+                        $format = $conf->{DAY_NOTIME_DATE_FORMAT} || '';
                     }
+                    my $range = encode_entities(
+                        sprintf '%s - %s',
+                        $chronos->format_date(
+                            $format, $syear, $smonth, $sday,
+                            $shour,  $smin,  0
+                        ),
+                        $chronos->format_date(
+                            $format, $eyear, $emonth, $eday,
+                            $ehour,  $emin,  0
+                        )
+                    );
 
                     my $status_text;
                     my $textkey = "status_$status";
@@ -379,22 +449,35 @@ EOF
                     $description = encode_entities($description);
                     $description =~ s/\n/<br>/g;
 
-                    my $bell = defined $reminder ? "<img src=\"/chronos_static/bell.png\"> " : '';
+                    my $bell =
+                      defined $reminder
+                      ? "<img src=\"/chronos_static/bell.png\"> "
+                      : '';
 
                     $sth_attach->execute($eid);
-                    my $file = $sth_attach->fetchrow_array ? "<img src=\"/chronos_static/file.png\"> " : '';
+                    my $file =
+                      $sth_attach->fetchrow_array
+                      ? "<img src=\"/chronos_static/file.png\"> "
+                      : '';
                     $sth_attach->finish;
-                    
+
                     $return .= <<EOF;
-        <td class=event rowspan=$rowspan>$bell$file$range <a class=event href="/Chronos?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a>$status_text<br>$description</td>
+        <td class=event rowspan=$rowspan>$bell$file$range <a class=event href="$uri?action=editevent&amp;eid=$eid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$name</a>$status_text<br>$description</td>
 EOF
                 }
                 $sth->finish;
             }
 
-            $sth_simul_events->execute($today_date, $today_date, $nexthour_time, $today_date, $today_date, $curhour_time, $curhour_time);
-            $sth_simul_participants->execute($today_date, $today_date, $nexthour_time, $today_date, $today_date, $curhour_time, $curhour_time);
-            $return .= <<EOF x ($max_simul_events - ($sth_simul_events->fetchrow_array + $sth_simul_participants->fetchrow_array));
+            $sth_simul_events->execute(
+                $today_date, $today_date,   $nexthour_time, $today_date,
+                $today_date, $curhour_time, $curhour_time
+            );
+            $sth_simul_participants->execute(
+                $today_date, $today_date,   $nexthour_time, $today_date,
+                $today_date, $curhour_time, $curhour_time
+            );
+            $return .=
+              <<EOF x ( $max_simul_events - ( $sth_simul_events->fetchrow_array + $sth_simul_participants->fetchrow_array ) );
         <td class=dayview>&nbsp;</td>
 EOF
             $sth_simul_events->finish;

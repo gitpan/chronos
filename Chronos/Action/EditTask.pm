@@ -1,4 +1,4 @@
-# $Id: EditTask.pm,v 1.7 2002/08/01 01:54:42 nomis80 Exp $
+# $Id: EditTask.pm,v 1.9 2002/08/09 16:00:14 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -31,18 +31,19 @@ sub type {
 }
 
 sub header {
-    my $self = shift;
+    my $self   = shift;
     my $object = $self->object;
-    my ($year, $month, $day) = $self->{parent}->day;
+    my ( $year, $month, $day ) = $self->{parent}->day;
     my $text = $self->{parent}->gettext;
+    my $uri  = $self->{parent}{r}->uri;
     return <<EOF;
 <table style="margin-style:none" cellspacing=0 cellpadding=0 width="100%">
     <tr>
         <td class=header>@{[Date_to_Text_Long(Today())]}</td>
         <td class=header align=right>
-            <a href="/Chronos?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
-            <a href="/Chronos?action=showweek&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{week}</a> |
-            <a href="/Chronos?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{Day}</a>
+            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
+            <a href="$uri?action=showweek&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{week}</a> |
+            <a href="$uri?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{Day}</a>
         </td>
     </tr>
 </table>
@@ -50,12 +51,12 @@ EOF
 }
 
 sub content {
-    my $self = shift;
+    my $self    = shift;
     my $chronos = $self->{parent};
 
-    my ($year, $month, $day) = $chronos->day;
-    my $minimonth = $chronos->minimonth($year, $month, $day);
-    my $form = $self->form($year, $month, $day);
+    my ( $year, $month, $day ) = $chronos->day;
+    my $minimonth = $chronos->minimonth( $year, $month, $day );
+    my $form      = $self->form( $year,         $month, $day );
 
     return <<EOF;
 <table width="100%" style="border:none">
@@ -68,21 +69,24 @@ EOF
 }
 
 sub form {
-    my $self = shift;
+    my $self   = shift;
     my $object = $self->object;
-    my ($year, $month, $day) = @_;
+    my ( $year, $month, $day ) = @_;
     my $chronos = $self->{parent};
-    my $dbh = $chronos->dbh;
-    my $text = $chronos->gettext;
+    my $dbh     = $chronos->dbh;
+    my $text    = $chronos->gettext;
+    my $uri     = $chronos->{r}->uri;
 
     my $tid = $chronos->{r}->param('tid');
-    my ($title, $notes, $priority);
+    my ( $title, $notes, $priority );
     if ($tid) {
-        ($title, $notes, $priority) = $dbh->selectrow_array("SELECT title, notes, priority FROM tasks WHERE tid = $tid");
+        ( $title, $notes, $priority ) =
+          $dbh->selectrow_array(
+            "SELECT title, notes, priority FROM tasks WHERE tid = $tid");
     }
 
     my $return = <<EOF;
-<form method=POST action="/Chronos">
+<form method=POST action="$uri">
 <input type=hidden name=action value=savetask>
 <input type=hidden name=tid value="$tid">
 <input type=hidden name=object value="$object">
@@ -105,7 +109,7 @@ sub form {
             <select name=priority>
 EOF
     $priority ||= 5;
-    foreach (1 .. 9) {
+    foreach ( 1 .. 9 ) {
         my $selected = $_ eq $priority ? 'selected' : '';
         $return .= <<EOF;
             <option $selected>$_</option>

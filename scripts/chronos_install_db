@@ -1,5 +1,5 @@
 #!/usr/bin/perl 
-# $Id: chronos_install_db,v 1.16 2002/07/28 21:03:44 nomis80 Exp $
+# $Id: chronos_install_db,v 1.17 2002/08/09 16:00:14 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -24,25 +24,26 @@ use strict;
 use DBI;
 use Chronos::Static qw(gettext get);
 
-my $lang = gettext('', 1);
+my $lang = gettext( '', 1 );
 
 print $lang->{create_db_intro};
 print "$lang->{create_db_pass} ";
 system "stty -echo";
-chomp(my $root_db_pass = <STDIN>);
+chomp( my $root_db_pass = <STDIN> );
 system "stty echo";
 print "\n";
 
-my $dbh = DBI->connect("dbi:mysql:", 'root', $root_db_pass, { RaiseError => 1 });
+my $dbh =
+  DBI->connect( "dbi:mysql:", 'root', $root_db_pass, { RaiseError => 1 } );
 my $databases = $dbh->selectall_arrayref("SHOW DATABASES");
 my $db_name;
 print "$lang->{create_db_dbname} ";
-chomp($db_name = <STDIN>);
+chomp( $db_name = <STDIN> );
 $db_name ||= 'chronos';
 foreach (@$databases) {
-    if ($_->[0] eq $db_name) {
+    if ( $_->[0] eq $db_name ) {
         print "$lang->{create_db_exists} [N/y] ";
-        if (<STDIN> =~ /^y/i) {
+        if ( <STDIN> =~ /^y/i ) {
             $dbh->do("DROP DATABASE $db_name");
             printf "$lang->{create_db_deleted}\n", $db_name;
         } else {
@@ -146,30 +147,35 @@ EOF
 printf "$lang->{create_db_tablecreated}\n", 'attachments';
 
 print "$lang->{create_db_user} ";
-chomp(my $db_user = <STDIN>);
+chomp( my $db_user = <STDIN> );
 $db_user ||= 'chronos';
 print "$lang->{create_db_dbpass} ";
 system "stty -echo";
-chomp(my $db_pass = <STDIN>);
+chomp( my $db_pass = <STDIN> );
 system "stty echo";
 print "\n";
-while (not $db_pass) {
-    foreach (1 .. 8) {
-        $db_pass .= chr( (48 .. 57, 65 .. 90, 97 .. 122)[ rand 62 ] );
+
+while ( not $db_pass ) {
+    foreach ( 1 .. 8 ) {
+        $db_pass .= chr( ( 48 .. 57, 65 .. 90, 97 .. 122 )[ rand 62 ] );
     }
 }
 my $db_pass_quoted = $dbh->quote($db_pass);
-$dbh->do("GRANT INSERT, SELECT, UPDATE, DELETE ON $db_name.* TO $db_user\@localhost IDENTIFIED BY $db_pass_quoted");
+$dbh->do(
+"GRANT INSERT, SELECT, UPDATE, DELETE ON $db_name.* TO $db_user\@localhost IDENTIFIED BY $db_pass_quoted"
+);
 $dbh->do("FLUSH PRIVILEGES");
 printf "$lang->{create_db_grant}\n", $db_user, $db_name;
 
 my @conf;
-if (-f "/etc/chronos.conf") {
-    open CONF, "/etc/chronos.conf" or die "Can,t open /etc/chronos.conf for reading: $!\n";
+if ( -f "/etc/chronos.conf" ) {
+    open CONF, "/etc/chronos.conf"
+      or die "Can,t open /etc/chronos.conf for reading: $!\n";
     @conf = <CONF>;
     close CONF;
 }
-open CONF, "> /etc/chronos.conf" or die "Can't open /etc/chronos.conf for writing: $!\n";
+open CONF, "> /etc/chronos.conf"
+  or die "Can't open /etc/chronos.conf for writing: $!\n";
 foreach (@conf) {
     next if /^(?:DB_NAME|DB_USER|DB_PASS)\s*=/i;
     print CONF $_;
@@ -187,12 +193,11 @@ print "$lang->{create_db_added}\n";
 
 print "\n$lang->{create_db_success}\n";
 
-
 sub get_apache_user {
     # In case someone doesn't want to use 'apache'
     my $user;
-    
-    if (-f "/etc/httpd/conf/httpd.conf") {
+
+    if ( -f "/etc/httpd/conf/httpd.conf" ) {
         open CONF, "/etc/httpd/conf/httpd.conf";
         while (<CONF>) {
             next unless /^\s*User\s+(\S+)/;
@@ -209,15 +214,15 @@ sub get_apache_user {
             last;
         }
     }
-    if (not $user) {
-        if (getpwnam 'apache') {
+    if ( not $user ) {
+        if ( getpwnam 'apache' ) {
             $user = 'apache';
-        } elsif (getpwnam 'nobody') {
+        } elsif ( getpwnam 'nobody' ) {
             $user = 'nobody';
         }
     }
 
-    return get($lang->{apacheuser}, { Default => $user });
+    return get( $lang->{apacheuser}, { Default => $user } );
 }
 
 # vim: set et ts=4 sw=4 ft=perl:

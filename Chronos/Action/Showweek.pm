@@ -1,4 +1,4 @@
-# $Id: Showweek.pm,v 1.11 2002/07/29 16:07:40 nomis80 Exp $
+# $Id: Showweek.pm,v 1.14 2002/08/12 18:27:35 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -33,19 +33,20 @@ sub type {
 }
 
 sub header {
-    my $self = shift;
-    my $object = $self->object;
+    my $self    = shift;
+    my $object  = $self->object;
     my $chronos = $self->{parent};
-    my ($year, $month, $day) = $chronos->day;
+    my ( $year, $month, $day ) = $chronos->day;
     my $text = $chronos->gettext;
+    my $uri  = $chronos->{r}->uri;
 
     return <<EOF;
 <!-- Begin Chronos::Action::Showweek header -->
 <table style="margin-style:none" cellspacing=0 cellpadding=0 width="100%">
     <tr>
         <td class=header align=right colspan=2>
-            <a href="/Chronos?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
-            <a href="/Chronos?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{Day}</a>
+            <a href="$uri?action=showmonth&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{month}</a> |
+            <a href="$uri?action=showday&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$text->{Day}</a>
         </td>
     </tr>
 </table>
@@ -54,15 +55,16 @@ EOF
 }
 
 sub content {
-    my $self = shift;
-    my $object = $self->object;
+    my $self    = shift;
+    my $object  = $self->object;
     my $chronos = $self->{parent};
-    my $text = $chronos->gettext;
+    my $text    = $chronos->gettext;
 
-    my ($year, $month, $day) = $chronos->day;
-    my $minimonth = $chronos->minimonth($year, $month, 0);
-    my $weekview = $self->weekview($year, $month, $day);
-    my $tasks = $self->Chronos::Action::Showday::taskview($year, $month, $day);
+    my ( $year, $month, $day ) = $chronos->day;
+    my $minimonth = $chronos->minimonth( $year, $month, 0 );
+    my $weekview  = $self->weekview( $year,     $month, $day );
+    my $tasks     =
+      $self->Chronos::Action::Showday::taskview( $year, $month, $day );
 
     return <<EOF;
 <table width="100%" style="border:none">
@@ -84,18 +86,23 @@ EOF
 }
 
 sub weekview {
-    my $self = shift;
-    my $object = $self->object;
+    my $self    = shift;
+    my $object  = $self->object;
     my $chronos = $self->{parent};
-    my ($year, $month, $day) = @_;
+    my ( $year, $month, $day ) = @_;
     my $text = $chronos->gettext;
+    my $uri  = $chronos->{r}->uri;
 
-    my ( $prev_year,      $prev_month,      $prev_day )      = Add_Delta_Days( $year, $month, $day, -7 );
-    my ( $next_year,      $next_month,      $next_day )      = Add_Delta_Days( $year, $month, $day, 7 );
-    my ( $prev_prev_year, $prev_prev_month, $prev_prev_day ) = Add_Delta_YM( $year, $month, $day, -1, 0 );
-    my ( $next_next_year, $next_next_month, $next_next_day ) = Add_Delta_YM( $year, $month, $day, 1,  0 );
+    my ( $prev_year, $prev_month, $prev_day ) =
+      Add_Delta_Days( $year, $month, $day, -7 );
+    my ( $next_year, $next_month, $next_day ) =
+      Add_Delta_Days( $year, $month, $day, 7 );
+    my ( $prev_prev_year, $prev_prev_month, $prev_prev_day ) =
+      Add_Delta_YM( $year, $month, $day, -1, 0 );
+    my ( $next_next_year, $next_next_month, $next_next_day ) =
+      Add_Delta_YM( $year, $month, $day, 1, 0 );
 
-    my $weeknum = Week_Number($year, $month, $day);
+    my $weeknum = Week_Number( $year, $month, $day );
     my $weektext = $text->{weeknum};
     $weektext =~ s/\%1/$weeknum/;
     $weektext =~ s/\%2/$year/;
@@ -105,11 +112,11 @@ sub weekview {
 <table width="100%" class=minimonth>
     <tr>
         <th class=minimonth colspan=7>
-            <a class=minimonthheader href="/Chronos?action=showweek&amp;object=$object&amp;year=$prev_prev_year&amp;month=$prev_prev_month&amp;day=$prev_prev_day">&lt;&lt;</a>&nbsp;
-            <a class=minimonthheader href="/Chronos?action=showweek&amp;object=$object&amp;year=$prev_year&amp;month=$prev_month&amp;day=$prev_day">&lt;</a>&nbsp;
+            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$prev_prev_year&amp;month=$prev_prev_month&amp;day=$prev_prev_day">&lt;&lt;</a>&nbsp;
+            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$prev_year&amp;month=$prev_month&amp;day=$prev_day">&lt;</a>&nbsp;
             @{[encode_entities($weektext)]}&nbsp;
-            <a class=minimonthheader href="/Chronos?action=showweek&amp;object=$object&amp;year=$next_year&amp;month=$next_month&amp;day=$next_day">&gt;</a>&nbsp;
-            <a class=minimonthheader href="/Chronos?action=showweek&amp;object=$object&amp;year=$next_next_year&amp;month=$next_next_month&amp;day=$next_next_day">&gt;&gt;</a>
+            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$next_year&amp;month=$next_month&amp;day=$next_day">&gt;</a>&nbsp;
+            <a class=minimonthheader href="$uri?action=showweek&amp;object=$object&amp;year=$next_next_year&amp;month=$next_next_month&amp;day=$next_next_day">&gt;&gt;</a>
         </th>
     </tr>
     <tr>
@@ -126,18 +133,21 @@ EOF
     <tr>
 EOF
 
-    my $dow = Day_of_Week($year, $month, $day);
+    my $dow = Day_of_Week( $year, $month, $day );
     foreach ( 1 .. 7 ) {
-        my ($tyear, $tmonth, $tday) = Add_Delta_Days($year, $month, $day, -($dow - $_));
+        my ( $tyear, $tmonth, $tday ) =
+          Add_Delta_Days( $year, $month, $day, -( $dow - $_ ) );
         my $month_text;
-        if ($_ == 1 or $tday == 1) {
+        if ( $_ == 1 or $tday == 1 ) {
             $month_text = ucfirst Month_to_Text($tmonth);
         }
-        my $holidays = Chronos::Action::Showmonth::get_holidays($self, $tyear, $tmonth, $tday);
+        my $holidays =
+          Chronos::Action::Showmonth::get_holidays( $self, $tyear, $tmonth,
+            $tday );
         $return .= <<EOF;
-        <td class=daycurmonth height=80><a class=daycurmonth href="/Chronos?action=showday&amp;object=$object&amp;year=$tyear&amp;month=$tmonth&amp;day=$tday">$tday</a> $month_text$holidays
+        <td class=daycurmonth height=80><a class=daycurmonth href="$uri?action=showday&amp;object=$object&amp;year=$tyear&amp;month=$tmonth&amp;day=$tday">$tday</a> $month_text$holidays
 EOF
-        $return .= $chronos->events_per_day($tyear, $tmonth, $tday);
+        $return .= $chronos->events_per_day( 'week', $tyear, $tmonth, $tday );
         $return .= "</td>";
     }
 
@@ -150,12 +160,13 @@ EOF
 }
 
 sub tasks {
-    my $self = shift;
+    my $self   = shift;
     my $object = $self->object;
-    my ($year, $month, $day) = @_;
+    my ( $year, $month, $day ) = @_;
     my $chronos = $self->{parent};
-    my $dbh = $chronos->dbh;
-    my $text = $chronos->gettext;
+    my $dbh     = $chronos->dbh;
+    my $text    = $chronos->gettext;
+    my $uri     = $chronos->{r}->uri;
 
     my $return = <<EOF;
 <!-- Begin Chronos::Action::Showweek::tasks -->
@@ -163,23 +174,25 @@ sub tasks {
     <tr><th class=dayview colspan=2>$text->{tasklist}</th></tr>
 EOF
 
-    my $rows = 11;
-    my $cols = 2;
-    my $col = 1;
+    my $rows  = 11;
+    my $cols  = 2;
+    my $col   = 1;
     my $width = int 100 / $cols;
-    
-    my $sth = $dbh->prepare("SELECT tid, title FROM tasks WHERE user = ? ORDER BY priority");
-    $sth->execute($self->object);
-    while (my ($tid, $title) = $sth->fetchrow_array) {
+
+    my $sth =
+      $dbh->prepare(
+        "SELECT tid, title FROM tasks WHERE user = ? ORDER BY priority");
+    $sth->execute( $self->object );
+    while ( my ( $tid, $title ) = $sth->fetchrow_array ) {
         $title = encode_entities($title);
-        if ($col == 1) {
+        if ( $col == 1 ) {
             $return .= "<tr>";
             $rows--;
         }
         $return .= <<EOF;
-        <td class=weektaskview width="$width\%">&nbsp;<a href="/Chronos?action=edittask&amp;tid=$tid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$title</a></td>
+        <td class=weektaskview width="$width\%">&nbsp;<a href="$uri?action=edittask&amp;tid=$tid&amp;object=$object&amp;year=$year&amp;month=$month&amp;day=$day">$title</a></td>
 EOF
-        if ($col == $cols) {
+        if ( $col == $cols ) {
             $return .= "</tr>";
             $col = 1;
         } else {
@@ -188,11 +201,13 @@ EOF
     }
     $sth->finish;
 
-    $return .= <<EOF x ($cols - $col + 1);
+    $return .= <<EOF x ( $cols - $col + 1 );
         <td class=weektaskview width="$width\%">&nbsp;</td>
 EOF
     $return .= "</tr>";
-    $return .= ("<tr>" . ("<td class=weektaskview width=\"$width\%\">&nbsp;</td>" x $cols) . "</tr>") x $rows;
+    $return .= ( "<tr>"
+          . ( "<td class=weektaskview width=\"$width\%\">&nbsp;</td>" x $cols )
+          . "</tr>" ) x $rows;
     $return .= <<EOF;
 <!-- End Chronos::Action::Showweek::tasks -->
 EOF

@@ -1,4 +1,4 @@
-# $Id: GetFile.pm,v 1.3 2002/07/18 17:33:16 nomis80 Exp $
+# $Id: GetFile.pm,v 1.4 2002/08/09 16:00:14 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -31,21 +31,27 @@ sub type {
 }
 
 sub authorized {
-    my $self = shift;
-    my $chronos = $self->{parent};
-    my $dbh = $chronos->dbh;
-    my $object = $self->object;
+    my $self          = shift;
+    my $chronos       = $self->{parent};
+    my $dbh           = $chronos->dbh;
+    my $object        = $self->object;
     my $object_quoted = $dbh->quote($object);
 
-    if ($self->SUPER::authorized == 0) {
+    if ( $self->SUPER::authorized == 0 ) {
         return 0;
     }
 
-    if (my $aid = $self->aid) {
-        my $eid = $dbh->selectrow_array("SELECT eid FROM attachments WHERE aid = $aid");
-        return 1 if $object eq $dbh->selectrow_array("SELECT initiator FROM events WHERE eid = $eid");
-        return 1 if $dbh->selectrow_array("SELECT user FROM participants WHERE eid = $eid AND user = $object_quoted");
-        return 0
+    if ( my $aid = $self->aid ) {
+        my $eid =
+          $dbh->selectrow_array("SELECT eid FROM attachments WHERE aid = $aid");
+        return 1
+          if $object eq $dbh->selectrow_array(
+            "SELECT initiator FROM events WHERE eid = $eid");
+        return 1
+          if $dbh->selectrow_array(
+"SELECT user FROM participants WHERE eid = $eid AND user = $object_quoted"
+          );
+        return 0;
     } else {
         return 0;
     }
@@ -56,13 +62,15 @@ sub freeform {
 }
 
 sub execute {
-    my $self = shift;
+    my $self    = shift;
     my $chronos = $self->{parent};
-    my $dbh = $chronos->dbh;
+    my $dbh     = $chronos->dbh;
 
     my $aid = $self->aid;
-    my ($filename, $file) = $dbh->selectrow_array("SELECT filename, file FROM attachments WHERE aid = $aid");
-    $chronos->{r}->content_type(getmime($filename));
+    my ( $filename, $file ) =
+      $dbh->selectrow_array(
+        "SELECT filename, file FROM attachments WHERE aid = $aid");
+    $chronos->{r}->content_type( getmime($filename) );
     $chronos->{r}->send_http_header;
     $chronos->{r}->print($file);
 
@@ -71,27 +79,28 @@ sub execute {
 
 sub aid {
     my $self = shift;
-    my $r = $self->{parent}{r};
+    my $r    = $self->{parent}{r};
     my @path = split '/', $r->path_info;
     return $path[2];
 }
 
 sub getmime {
     my $filename = shift;
-    (my $extension = $filename) =~ s/.*\.//;
+    ( my $extension = $filename ) =~ s/.*\.//;
     return 'application/octet-stream' if not $extension;
-    if (not %Chronos::Action::GetFile::types) {
+    if ( not %Chronos::Action::GetFile::types ) {
         # Cache parsing /etc/mime.types thanks to mod_perl
         open MIME, "/etc/mime.types";
         while (<MIME>) {
             next if /^#/ or /^\s*$/;
-            my ($type, @extensions) = split;
+            my ( $type, @extensions ) = split;
             next if not @extensions;
             $Chronos::Action::GetFile::types{$_} = $type foreach @extensions;
         }
         close MIME;
     }
-    return $Chronos::Action::GetFile::types{$extension} || 'application/octet-stream';
+    return $Chronos::Action::GetFile::types{$extension}
+      || 'application/octet-stream';
 }
 
 1;

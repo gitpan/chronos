@@ -52,7 +52,10 @@ be squashed within a day.
 THIS RELEASE
 ============
 
-remindd simply didn't work in 1.1.2, it does now in 1.1.3. Sorry.
+New Portuguese translation by Augusto Cesar Sandoval. Cosmetic and non-cosmetic
+bugfixes. Most date formats are now customizable. It is now possible to run
+multiple Chronos servers on the same system. More user-friendly confirmation
+email.
 
 Chronos is currently available in the following languages:
     - English
@@ -60,9 +63,12 @@ Chronos is currently available in the following languages:
     - Italian (incomplete)
     - German
     - Norwegian
+    - Portuguese
 
 OLDER RELEASES
 ==============
+
+remindd simply didn't work in 1.1.2, it does now in 1.1.3. Sorry.
 
 1.1.2 brings minor bugfixes and visual enhancements. Apache::DBI does not
 complain anymore, meaning that Chronos is installable by CPAN and installation

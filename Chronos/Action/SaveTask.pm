@@ -1,4 +1,4 @@
-# $Id: SaveTask.pm,v 1.5 2002/08/04 20:34:49 nomis80 Exp $
+# $Id: SaveTask.pm,v 1.7 2002/08/09 16:00:14 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -34,33 +34,39 @@ sub header {
 }
 
 sub content {
-    my $self = shift;
-    my $object = $self->object;
+    my $self    = shift;
+    my $object  = $self->object;
     my $chronos = $self->{parent};
-    my $dbh = $chronos->dbh;
+    my $dbh     = $chronos->dbh;
 
-    my $tid = $chronos->{r}->param('tid');
-    my $title = $chronos->{r}->param('title');
-    my $notes = $chronos->{r}->param('notes');
+    my $tid      = $chronos->{r}->param('tid');
+    my $title    = $chronos->{r}->param('title');
+    my $notes    = $chronos->{r}->param('notes');
     my $priority = $chronos->{r}->param('priority');
 
     $self->Chronos::Action::SaveEvent::error('notitle') if not $title;
 
     if ($tid) {
-        if ($chronos->{r}->param('delete')) {
+        if ( $chronos->{r}->param('delete') ) {
             # Suppression d'une tâche existante
             $dbh->do("DELETE FROM tasks WHERE tid = $tid");
         } else {
             # Modification d'une tâche existante
-            $dbh->prepare("UPDATE tasks SET title = ?, notes = ?, priority = ? WHERE tid = ?")->execute($title, $notes, $priority, $tid);
+            $dbh->prepare(
+"UPDATE tasks SET title = ?, notes = ?, priority = ? WHERE tid = ?"
+            )->execute( $title, $notes, $priority, $tid );
         }
     } else {
         # Création d'une nouvelle tâche
-        $dbh->prepare("INSERT INTO tasks (title, notes, priority, user) VALUES(?, ?, ?, ?)")->execute($title, $notes, $priority, $self->object);
+        $dbh->prepare(
+"INSERT INTO tasks (title, notes, priority, user) VALUES(?, ?, ?, ?)"
+        )->execute( $title, $notes, $priority, $self->object );
     }
 
-    my ($year, $month, $day) = $chronos->day;
-    $chronos->{r}->header_out("Location", "/Chronos?action=showday&object=$object&year=$year&month=$month&day=$day");
+    my ( $year, $month, $day ) = $chronos->day;
+    my $uri = $chronos->{r}->uri;
+    $chronos->{r}->header_out( "Location",
+        "$uri?action=showday&object=$object&year=$year&month=$month&day=$day" );
 }
 
 sub redirect {

@@ -1,4 +1,4 @@
-# $Id: DelFile.pm,v 1.2 2002/07/21 19:43:39 nomis80 Exp $
+# $Id: DelFile.pm,v 1.4 2002/08/09 16:00:14 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -30,21 +30,27 @@ sub type {
 }
 
 sub authorized {
-    my $self = shift;
-    my $chronos = $self->{parent};
-    my $dbh = $chronos->dbh;
-    my $object = $self->object;
+    my $self          = shift;
+    my $chronos       = $self->{parent};
+    my $dbh           = $chronos->dbh;
+    my $object        = $self->object;
     my $object_quoted = $dbh->quote($object);
 
-    if ($self->SUPER::authorized == 0) {
+    if ( $self->SUPER::authorized == 0 ) {
         return 0;
     }
 
-    if (my $aid = $chronos->{r}->param('aid')) {
-        my $eid = $dbh->selectrow_array("SELECT eid FROM attachments WHERE aid = $aid");
-        return 1 if $object eq $dbh->selectrow_array("SELECT initiator FROM events WHERE eid = $eid");
-        return 1 if $dbh->selectrow_array("SELECT user FROM participants WHERE eid = $eid AND user = $object_quoted");
-        return 0
+    if ( my $aid = $chronos->{r}->param('aid') ) {
+        my $eid =
+          $dbh->selectrow_array("SELECT eid FROM attachments WHERE aid = $aid");
+        return 1
+          if $object eq $dbh->selectrow_array(
+            "SELECT initiator FROM events WHERE eid = $eid");
+        return 1
+          if $dbh->selectrow_array(
+"SELECT user FROM participants WHERE eid = $eid AND user = $object_quoted"
+          );
+        return 0;
     } else {
         return 0;
     }
@@ -55,17 +61,20 @@ sub redirect {
 }
 
 sub content {
-    my $self = shift;
-    my $object = $self->object;
+    my $self    = shift;
+    my $object  = $self->object;
     my $chronos = $self->{parent};
-    my $aid = $chronos->{r}->param('aid');
-    my $dbh = $chronos->dbh;
+    my $aid     = $chronos->{r}->param('aid');
+    my $dbh     = $chronos->dbh;
     $dbh->do("DELETE FROM attachments WHERE aid = $aid");
-    my $eid = $chronos->{r}->param('eid');
-    my $year = $chronos->{r}->param('year');
+    my $eid   = $chronos->{r}->param('eid');
+    my $year  = $chronos->{r}->param('year');
     my $month = $chronos->{r}->param('month');
-    my $day = $chronos->{r}->param('day');
-    $chronos->{r}->header_out( "Location", "/Chronos?action=editevent&object=$object&eid=$eid&year=$year&month=$month&day=$day" );
+    my $day   = $chronos->{r}->param('day');
+    my $uri   = $chronos->{r}->uri;
+    $chronos->{r}->header_out( "Location",
+"$uri?action=editevent&object=$object&eid=$eid&year=$year&month=$month&day=$day"
+    );
 }
 
 1;

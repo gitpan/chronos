@@ -1,4 +1,4 @@
-# $Id: Action.pm,v 1.6 2002/07/18 13:01:37 nomis80 Exp $
+# $Id: Action.pm,v 1.7 2002/08/09 16:00:14 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -24,8 +24,8 @@ use strict;
 use Apache::Constants qw(:common);
 
 sub new {
-    my $self   = shift;
-    my $class  = ref($self) || $self;
+    my $self = shift;
+    my $class = ref($self) || $self;
     return bless { parent => shift }, $class;
 }
 

@@ -92,7 +92,8 @@ GENERAL UPGRADING
 
 1) perl Makefile.PL && make && make install
 2) service httpd restart
-3) service remindd restart
+3) install -m 755 remindd /etc/init.d (or wherever your startup scripts are)
+4) service remindd restart
 
 
 INSTALLATION INSTRUCTIONS
@@ -111,12 +112,16 @@ INSTALLATION INSTRUCTIONS
 		<VirtualHost _default_:443>
 			DocumentRoot "/var/www/ssl"
 			<Location /Chronos>
-			SetHandler perl-script
-			PerlHandler Chronos
-			PerlAuthenHandler Chronos::Authen
-			Require valid-user
-			AuthName "Chronos"
-			AuthType Basic
+	    		SetHandler perl-script
+		    	PerlHandler Chronos
+			    PerlAuthenHandler Chronos::Authen
+    			Require valid-user
+	    		AuthName "Chronos"
+		    	AuthType Basic
+                # Following line is optional (in case you want to run more than
+                # one Chronos servers on one system). Default is
+                # "/etc/chronos.conf".
+                PerlSetVar ChronosConfig "/etc/chronos.conf"
 			</Location>
             # The alias is for stupid browsers
             Alias /chronos /Chronos
@@ -219,6 +224,7 @@ INSTALLATION INSTRUCTIONS
 
 6) Have remindd start automatically on boot and start it
 
+    install -m 755 remindd /etc/init.d (or wherever your startup scripts are)
 	/sbin/chkconfig --add remindd
 	/sbin/chkconfig remindd on
 	/sbin/service remindd start

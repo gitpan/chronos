@@ -1,4 +1,4 @@
-# $Id: fr,v 1.20 2002/08/04 20:34:49 nomis80 Exp $
+# $Id: fr,v 1.23 2002/08/12 18:31:55 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -71,7 +71,8 @@ Ceci est un message automatisé. N'y répondez pas directement.
 Nom de l'événement: %%NAME%%
 Description: %%DESCRIPTION%%
 
-Veuillez confirmer votre présence.
+Veuillez confirmer votre présence en vous rendant à
+%%CONFIRMURL%%
 
 -- 
 Chronos %%VERSION%% par Linux Québec Technologies
@@ -175,9 +176,14 @@ fr=Français
 it=Italien
 de=Allemand
 no=Norvégien
+po=Portugais
 attachments=Fichiers attachés:
 new_attachment=Nouveau fichier attaché:
 participants_to_add=Ajout de participants:
 remove_part=Enlever
 notime=Pas d'heure
 errornotitle=Il manque un titre à cette tâche.
+remindd_forking=Je fork...
+remindd_forkerror=Je n'ai pas pu forker: %s
+remindd_setsiderror=Je n'ai pas pu créer une nouvelle session: %s
+remindd_usage=Usage: %s [-D] [-f <fichier de config>]

@@ -1,4 +1,4 @@
-# $Id: SaveUserPrefs.pm,v 1.3 2002/07/16 15:12:13 nomis80 Exp $
+# $Id: SaveUserPrefs.pm,v 1.5 2002/08/09 16:00:14 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -34,63 +34,77 @@ sub header {
 }
 
 sub content {
-    my $self = shift;
-    my $chronos = $self->{parent};
-    my $dbh = $chronos->dbh;
-    my $user = $chronos->user;
+    my $self        = shift;
+    my $chronos     = $self->{parent};
+    my $dbh         = $chronos->dbh;
+    my $user        = $chronos->user;
     my $user_quoted = $dbh->quote($user);
 
-    my $lang = $chronos->{r}->param('lang');
+    my $lang       = $chronos->{r}->param('lang');
     my $agendatype = $chronos->{r}->param('agendatype');
-    my ($public_readable, $public_writable);
-    if ($agendatype eq 'publicrw') {
+    my ( $public_readable, $public_writable );
+    if ( $agendatype eq 'publicrw' ) {
         $public_readable = 'Y';
         $public_writable = 'Y';
-    } elsif ($agendatype eq 'publicr') {
+    } elsif ( $agendatype eq 'publicr' ) {
         $public_readable = 'Y';
         $public_writable = 'N';
     } else {
         $public_readable = 'N';
         $public_writable = 'N';
     }
-    my $name = $chronos->{r}->param('name');
+    my $name  = $chronos->{r}->param('name');
     my $email = $chronos->{r}->param('email');
-    $dbh->prepare("UPDATE user SET lang = ?, public_readable = ?, public_writable = ?, name = ?, email = ? WHERE user = ?")->execute($lang, $public_readable, $public_writable, $name, $email, $user);
+    $dbh->prepare(
+"UPDATE user SET lang = ?, public_readable = ?, public_writable = ?, name = ?, email = ? WHERE user = ?"
+      )
+      ->execute( $lang, $public_readable, $public_writable, $name, $email,
+        $user );
 
-    if (my $password = $chronos->{r}->param('password')) {
-        $dbh->prepare("UPDATE user SET password = PASSWORD('$password') WHERE user = ?")->execute($user);
+    if ( my $password = $chronos->{r}->param('password') ) {
+        $dbh->prepare(
+            "UPDATE user SET password = PASSWORD('$password') WHERE user = ?")
+          ->execute($user);
     }
 
     my $sth = $dbh->prepare("SELECT user FROM user WHERE user != $user_quoted");
-    my $sth_acl_select = $dbh->prepare("SELECT user FROM acl WHERE object = $user_quoted AND user = ?");
-    my $sth_acl_insert = $dbh->prepare("INSERT INTO acl (object, user, can_read, can_write) VALUES(?, ?, ?, ?)");
-    my $sth_acl_update = $dbh->prepare("UPDATE acl SET can_read = ?, can_write = ? WHERE object = ? AND user = ?");
+    my $sth_acl_select =
+      $dbh->prepare(
+        "SELECT user FROM acl WHERE object = $user_quoted AND user = ?");
+    my $sth_acl_insert =
+      $dbh->prepare(
+        "INSERT INTO acl (object, user, can_read, can_write) VALUES(?, ?, ?, ?)"
+      );
+    my $sth_acl_update =
+      $dbh->prepare(
+"UPDATE acl SET can_read = ?, can_write = ? WHERE object = ? AND user = ?"
+      );
     $sth->execute;
-    while (my $userr = $sth->fetchrow_array) {
+    while ( my $userr = $sth->fetchrow_array ) {
         my $priv = $chronos->{r}->param("indivpriv_$userr");
-        my ($can_read, $can_write);
-        if ($priv eq 'rw') {
-            $can_read = 'Y';
+        my ( $can_read, $can_write );
+        if ( $priv eq 'rw' ) {
+            $can_read  = 'Y';
             $can_write = 'Y';
-        } elsif ($priv eq 'r') {
-            $can_read = 'Y';
+        } elsif ( $priv eq 'r' ) {
+            $can_read  = 'Y';
             $can_write = 'N';
         } else {
-            $can_read = 'N';
+            $can_read  = 'N';
             $can_write = 'N';
         }
 
         $sth_acl_select->execute($userr);
-        if ($sth_acl_select->fetchrow_array) {
-            $sth_acl_update->execute($can_read, $can_write, $user, $userr);
+        if ( $sth_acl_select->fetchrow_array ) {
+            $sth_acl_update->execute( $can_read, $can_write, $user, $userr );
         } else {
-            $sth_acl_insert->execute($user, $userr, $can_read, $can_write);
+            $sth_acl_insert->execute( $user, $userr, $can_read, $can_write );
         }
         $sth_acl_select->finish;
     }
     $sth->finish;
 
-    $chronos->{r}->header_out("Location", "/Chronos");
+    $chronos->{r}->header_out( "Location", $chronos->{r}->uri );
 }
 
 sub redirect {

@@ -1,4 +1,4 @@
-# $Id: test.pl,v 1.4 2002/08/03 13:56:01 nomis80 Exp $ 
+# $Id: test.pl,v 1.5 2002/08/07 01:29:19 nomis80 Exp $ 
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl test.pl'
 
@@ -10,6 +10,7 @@
 print "
 ### No tests right now.
 ### Wait for Apache::Test and mod_perl 2.0
+
 ";
 
 ######################### End of black magic.

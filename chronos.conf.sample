@@ -17,3 +17,26 @@ DB_PASS=secret
 # Path to stylesheet relative to DocumentRoot
 # Default: /chronos_static/chronos.css
 #STYLESHEET=/chronos_static/chronos.css
+
+# Date formats. Everything should be locale-aware.
+# String gets passed to POSIX::strftime(). See strftime(3). %(long) is
+# interpolated with Date::Calc::Date_to_Text_Long() and %(short) is interpolated
+# with Date::Calc::Date_to_Text().
+# Defaults:
+#DAY_DATE_FORMAT=%k:%M
+#DAY_MULTIDAY_DATE_FORMAT=%(long) %k:%M
+#DAY_NOTIME_DATE_FORMAT=
+#DAY_MULTIDAY_NOTIME_DATE_FORMAT=%(long)
+#MONTH_DATE_FORMAT=%k:%M
+#MONTH_MULTIDAY_DATE_FORMAT=%F %k:%M
+#MONTH_NOTIME_DATE_FORMAT=
+#MONTH_MULTIDAY_NOTIME_DATE_FORMAT=%F
+#WEEK_DATE_FORMAT=%k:%M
+#WEEK_MULTIDAY_DATE_FORMAt=%F %k:%M
+#WEEK_NOTIME_DATE_FORMAT=
+#WEEK_MULTIDAY_NOTIME_DATE_FORMAT=%F
+#MINIMONTH_DATE_FORMAT=%(long)
+#HEADER_DATE_FORMAT=%(long)
+#
+# Alternative example (this prints "It is now Mon Jan 02")
+#HEADER_DATE_FORMAT=It is now %a %b %g

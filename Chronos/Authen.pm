@@ -1,4 +1,4 @@
-# $Id: Authen.pm,v 1.4 2002/07/16 15:12:13 nomis80 Exp $
+# $Id: Authen.pm,v 1.5 2002/08/09 16:00:14 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies 
 #
@@ -27,29 +27,35 @@ use Chronos;
 sub handler {
     my $r = shift;
 
-    my ($res, $sent_pw) = $r->get_basic_auth_pw;
+    my ( $res, $sent_pw ) = $r->get_basic_auth_pw;
     return $res if $res != OK;
     my $user = $r->connection->user;
 
-    my $reason = authenticate($r, $user, $sent_pw);
+    my $reason = authenticate( $r, $user, $sent_pw );
 
     if ($reason) {
         $r->note_basic_auth_failure;
-        $r->log_reason($reason, $r->filename);
+        $r->log_reason( $reason, $r->filename );
         return AUTH_REQUIRED;
     }
     return OK;
 }
 
 sub authenticate {
-    my ($r, $user, $sent_pw) = @_;
-    return "empty user names and passwords disallowed" unless $user and $sent_pw;
-    
+    my ( $r, $user, $sent_pw ) = @_;
+    return "empty user names and passwords disallowed"
+      unless $user and $sent_pw;
+
     my $chronos = Chronos->new($r);
-    my $dbh = $chronos->dbh;
-    $user = $dbh->quote($user);
+    my $dbh     = $chronos->dbh;
+    $user    = $dbh->quote($user);
     $sent_pw = $dbh->quote($sent_pw);
-    unless ($dbh->selectrow_array("SELECT user FROM user WHERE user = $user AND password = PASSWORD($sent_pw)")) {
+    unless (
+        $dbh->selectrow_array(
+"SELECT user FROM user WHERE user = $user AND password = PASSWORD($sent_pw)"
+        )
+      )
+    {
         return "user $user: not authentified";
     }
     return '';

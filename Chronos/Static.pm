@@ -1,4 +1,4 @@
-# $Id: Static.pm,v 1.23 2002/08/04 20:40:40 nomis80 Exp $
+# $Id: Static.pm,v 1.25 2002/08/12 18:31:55 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -36,7 +36,7 @@ our @EXPORT_OK =
   qw(&gettext &conf &dbh &datetime2values &Compare_YMDHMS &to_datetime &from_datetime &Compare_YMD &from_date &userstring &to_date &lang &get &from_time &to_time);
 our %EXPORT_TAGS = ( all => \@EXPORT_OK );
 
-our $VERSION = '1.1.3';
+our $VERSION = '1.1.4';
 sub VERSION { $VERSION }
 
 =pod
@@ -95,7 +95,7 @@ sub dbh {
     my $db_user = $conf->{DB_USER} || 'chronos';
     my $db_pass = $conf->{DB_PASS};
     if ( not $db_pass ) {
-        warn("I need a DB_PASS in /etc/chronos.conf");
+        warn("I need a DB_PASS in the configuration file");
         return;
     }
 
@@ -114,9 +114,10 @@ sub dbh {
 }
 
 sub conf {
+    my $file = shift || "/etc/chronos.conf";
+
     my %conf;
-    open CONF, "/etc/chronos.conf"
-      or die "Can't open /etc/chronos.conf for reading: $!\n";
+    open CONF, $file or die "Can't open $file for reading: $!\n";
     while (<CONF>) {
         next if /^#/ or /^\s*$/;
         my ( $key, $value ) = $_ =~ /^(\w+?)\s*=\s*(.*)/;
