@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: remindd,v 1.6 2002/08/01 01:38:02 nomis80 Exp $
+# $Id: remindd,v 1.7 2002/08/04 20:40:41 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -24,6 +24,7 @@ use strict;
 use Date::Calc qw(:all);
 use Chronos::Static qw(dbh from_date from_time gettext conf);
 use POSIX qw(setsid);
+use HTML::Entities;
 
 unless ( $ARGV[0] eq '-D' ) {
     print "Forking...\n";

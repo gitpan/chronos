@@ -1,4 +1,4 @@
-# $Id: SaveTask.pm,v 1.4 2002/07/18 17:33:16 nomis80 Exp $
+# $Id: SaveTask.pm,v 1.5 2002/08/04 20:34:49 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -43,6 +43,8 @@ sub content {
     my $title = $chronos->{r}->param('title');
     my $notes = $chronos->{r}->param('notes');
     my $priority = $chronos->{r}->param('priority');
+
+    $self->Chronos::Action::SaveEvent::error('notitle') if not $title;
 
     if ($tid) {
         if ($chronos->{r}->param('delete')) {

@@ -1,4 +1,4 @@
-# $Id: fr,v 1.19 2002/07/29 13:25:08 nomis80 Exp $
+# $Id: fr,v 1.20 2002/08/04 20:34:49 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -180,3 +180,4 @@ new_attachment=Nouveau fichier attaché:
 participants_to_add=Ajout de participants:
 remove_part=Enlever
 notime=Pas d'heure
+errornotitle=Il manque un titre à cette tâche.

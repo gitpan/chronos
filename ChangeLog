@@ -1,3 +1,7 @@
+1.1.3:
+- Entering a task without a title is now impossible.
+- remindd now works (sorry, need more eyes for testing ;)
+
 1.1.2:
 - Move /var/www/ssl/chronos to /var/www/ssl/chronos_static and make /chronos
   an alias for /Chronos. Old browsers reportedly had some difficulties with

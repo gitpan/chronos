@@ -1,4 +1,4 @@
-# $Id: Chronos.pm,v 1.34 2002/08/03 14:51:04 nomis80 Exp $
+# $Id: Chronos.pm,v 1.36 2002/08/04 20:40:40 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies 
 #
@@ -38,7 +38,7 @@ use Chronos::Action::SaveUserPrefs;
 use Chronos::Action::GetFile;
 use Chronos::Action::DelFile;
 
-our $VERSION = "1.1.1";
+our $VERSION = "1.1.3";
 sub VERSION { $VERSION }
 
 sub handler {

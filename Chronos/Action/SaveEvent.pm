@@ -1,4 +1,4 @@
-# $Id: SaveEvent.pm,v 1.20 2002/08/01 01:48:15 nomis80 Exp $
+# $Id: SaveEvent.pm,v 1.21 2002/08/04 15:37:24 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies
 #
@@ -23,7 +23,7 @@ package Chronos::Action::SaveEvent;
 use strict;
 use Chronos::Action;
 use Date::Calc qw(:all);
-use Chronos::Static qw(Compare_YMDHMS Compare_YMD userstring to_datetime to_date to_time);
+use Chronos::Static qw(Compare_YMDHMS Compare_YMD userstring to_datetime to_date to_time from_date from_time);
 use HTML::Entities;
 
 our @ISA = qw(Chronos::Action);
