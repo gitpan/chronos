@@ -85,6 +85,7 @@ table.minimonth {
 table.taskview {
 	background-color: white;
 	text-align: left;
+    padding: 2px;
 }
 
 td.minimonthfooter {
@@ -209,4 +210,8 @@ table.attachments {
 	border: none;
 	background-color: white;
 	padding: 10px;
+}
+
+ul {
+    margin: 0px;
 }

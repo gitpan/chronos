@@ -52,6 +52,9 @@ be squashed within a day.
 THIS RELEASE
 ============
 
+1.1.4.1 fixes a major bug that would print 0:00 for any event in month and week
+views.
+
 New Portuguese translation by Augusto Cesar Sandoval. Cosmetic and non-cosmetic
 bugfixes. Most date formats are now customizable. It is now possible to run
 multiple Chronos servers on the same system. More user-friendly confirmation

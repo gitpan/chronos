@@ -1,4 +1,4 @@
-# $Id: Chronos.pm,v 1.45 2002/08/12 18:31:55 nomis80 Exp $
+# $Id: Chronos.pm,v 1.46 2002/08/12 23:36:56 nomis80 Exp $
 #
 # Copyright (C) 2002  Linux Québec Technologies 
 #
@@ -40,7 +40,7 @@ use Chronos::Action::DelFile;
 use HTML::Entities;
 use POSIX qw(strftime);
 
-our $VERSION = "1.1.4";
+our $VERSION = "1.1.4.1";
 sub VERSION { $VERSION }
 
 sub handler {
@@ -563,10 +563,10 @@ EOF
                 $range = encode_entities(
                     sprintf '%s - %s',
                     $self->format_date(
-                        $format, $syear, $smonth, $sday, 0, 0, 0
+                        $format, $syear, $smonth, $sday, $shour, $smin, $ssec
                     ),
                     $self->format_date(
-                        $format, $eyear, $emonth, $eday, 0, 0, 0
+                        $format, $eyear, $emonth, $eday, $ehour, $emin, $esec
                     )
                 );
             } else {

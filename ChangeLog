@@ -1,3 +1,7 @@
+1.1.4.1:
+- Fixed bug that would print 0:00 as the start and end time for any event in
+  the month and week views.
+
 1.1.4:
 - Empty parentheses are not shown for empty status
 - Current day (in red) checks for current year
